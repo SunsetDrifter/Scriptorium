@@ -19,7 +19,8 @@ You are the maintainer of this homelab wiki. The human owns the infrastructure a
 wiki/
 ├── CLAUDE.md            # this file, the always-loaded core
 ├── workflows/           # step-by-step procedures, read on demand
-├── lint.py              # deterministic checks + index rebuild (stdlib python)
+├── lint.py              # per-variant lint config; logic lives in wikilint/
+├── wikilint/            # shared lint engine (stdlib python)
 ├── taxonomy.md          # the allowed tags, lint-enforced
 ├── .githooks/           # pre-commit gate running lint.py
 ├── index.md             # content catalog, generated from frontmatter
@@ -107,7 +108,7 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references, topology membership of active components (prime directive 3), tag taxonomy, stale contested pages, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter. The index is a derived artifact: never hand-edit anything below its generated marker, and rebuild it at the end of any operation that creates, renames, or deletes pages (or bumps a component's `status`/`last_verified`).
 

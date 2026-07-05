@@ -3,7 +3,7 @@
 Triggered by "lint the wiki". Lint has two halves: the script does everything mechanical; you do only the checks that need judgment.
 
 1. **Run `python3 lint.py check`** and relay its findings grouped by severity. Do not re-verify by hand what it already covers: frontmatter validity (including the `subsystem` field), broken wikilinks, orphans, dangling references (including `key_modules` and `includes`), tags, contested age, criticality-weighted sync drift, owner-review staleness, mermaid presence and node counts, ADR numbering gaps and forward links in both global and subsystem directories, secrets, inbox health, index drift, log format.
-2. **Run `python3 lint.py coverage`** and summarize `coverage.md` per subsystem. Flag any subsystem under 30% coverage on load-bearing areas; coverage is partial by design, so report gaps as choices to make, not failures.
+2. **Run `python3 lint.py coverage`** and summarize `coverage.md`: the per-subsystem module inventory by criticality, and the per-include-root directory coverage with its uncovered-directories list. Flag subsystems whose load-bearing inventory looks thin for their footprint and uncovered directories that look load-bearing; coverage is partial by design, so report gaps as choices to make, not failures.
 3. **Run `python3 lint.py reverse-deps`** and review the derived map for cross-subsystem coupling: modules depending on another subsystem's internal modules rather than its public APIs. Flag as architectural smell, not error.
 
 Then the judgment checks:

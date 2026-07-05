@@ -34,7 +34,8 @@ This block lives above the generated marker, so `python3 lint.py rebuild-index` 
 wiki/
 ├── CLAUDE.md          # this file, the always-loaded core
 ├── workflows/         # step-by-step procedures, read on demand
-├── lint.py            # deterministic checks + index rebuild (stdlib python)
+├── lint.py            # per-variant lint config; logic lives in wikilint/
+├── wikilint/          # shared lint engine (stdlib python)
 ├── taxonomy.md        # the allowed tags, lint-enforced
 ├── .githooks/         # pre-commit gate running lint.py
 ├── index.md           # repo pinning block + generated content catalog
@@ -62,7 +63,7 @@ Extra required fields by type:
 - **module**: `source_path`, `language`, `status` (active | experimental | deprecated | removed), `last_verified_commit`, `last_verified`. Plus `depends_on`: the module pages this one uses.
 - **service**: `source_path`, `deployment` (k8s | systemd | docker | lambda | ...), `last_verified_commit`, `last_verified`. Plus `modules` (module pages it bundles), `exposes` (api pages), `consumes` (service or api pages it calls), `runtime_config`.
 - **api**: `api_kind` (http | grpc | cli | library | event), `defined_in` (the module page that implements it), `stability` (stable | beta | experimental | deprecated), `last_verified_commit`.
-- **data-model**: `model_kind` (db-table | type | schema | message), `defined_in`, `storage` (postgres | sqlite | redis | in-memory | wire), `producers`, `consumers`, `last_verified_commit`.
+- **data-model**: `model_kind` (db-table | type | schema | message), `defined_in`, `storage` (postgres | sqlite | redis | in-memory | wire), `last_verified_commit`. Plus `producers` and `consumers`: the module/api pages that write and read it. These are forward fields stored on the data-model page itself; empty lists are fine while unknown.
 - **architecture**: `scope` (system | service | module | data-flow | deployment | request-flow), `includes` (every page the diagram covers).
 - **adr**: `adr_number`, `status` (proposed | accepted | superseded | rejected), `date`, plus `supersedes` / `superseded_by` wiki paths.
 - **concept, runbook, postmortem, synthesis, source, query**: no extra required fields.
@@ -97,9 +98,9 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), architecture membership of active modules (prime directive 3), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
-`python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter, preserving the pinning block above the generated marker. The index is a derived artifact: never hand-edit anything below the marker, and rebuild at the end of any operation that creates, renames, or deletes pages. `python3 lint.py reverse-deps` prints who depends on what, derived from the stored edges.
+`python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter, preserving the pinning block above the generated marker. The index is a derived artifact: never hand-edit anything below the marker, and rebuild at the end of any operation that creates, renames, or deletes pages. `python3 lint.py reverse-deps` prints the derived reverse map of every stored relationship field (`depends_on`, `defined_in`, `modules`, `exposes`, `consumes`, `producers`, `consumers`).
 
 ## Style rules for wiki prose
 
