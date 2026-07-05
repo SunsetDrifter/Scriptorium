@@ -1,0 +1,24 @@
+# Document
+
+Triggered by "document `libs/auth/session/`" or "document the new payments service".
+
+1. **Identify the subsystem.** Does the target belong to an existing subsystem? If not, ask before creating a new one; subsystem boundaries are organizational, not just technical, and must match how the team thinks about ownership.
+2. **Read the code.** Start with the public surface (exported functions, types, routes). If the module is large, read the entry points and the most-imported internals first. Do not pretend to have read what you skimmed, and do not infer behavior from filenames.
+3. **Check for an existing page.** If one exists, this is an update, not a creation.
+4. **Discuss before writing.** Tell the human what you found, what you'll file, and where in the subsystem hierarchy. Confirm `criticality` and `verification_method` with them.
+5. **Create or update the page.** Fill all required frontmatter, including `description` and `subsystem`. Set `last_verified_commit` to the current SHA and `verification_method` honestly: if you only spot-checked, say `spot-check`, not `full`. Cite specific file paths in the prose. Do not add `consumed_by` or `consumers` fields anywhere; reverse edges are derived (`python3 lint.py reverse-deps` if you need them while writing).
+6. **Update affected pages.** The subsystem README's `key_modules`/`key_services` if the page is significant, and subsystem or global architecture pages (Mermaid diagrams plus `includes`).
+7. **File an ADR if a real decision was made.** Use the right scope: subsystem-local ADR if the decision only affects this subsystem, global ADR if it crosses boundaries. Follow `workflows/adr.md`.
+8. **Rebuild and check.** Run `python3 lint.py rebuild-index`, then `python3 lint.py check` and fix any errors it reports.
+9. **Append to `log.md`**, then commit: `document: <target>`.
+10. **Report back** with every page created or updated and anything you could not verify.
+
+Log entry format:
+
+```
+## [2026-04-10] document | libs/auth/session
+- created: subsystems/auth/modules/session-store.md
+- updated: subsystems/auth/README.md, subsystems/auth/architecture/module-deps.md
+- verification: full at e4f5g6h, criticality load-bearing
+- adr: subsystems/auth/adrs/0004-session-pinning.md
+```
