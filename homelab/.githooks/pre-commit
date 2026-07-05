@@ -1,11 +1,18 @@
 #!/bin/sh
 # Wiki pre-commit gate: lint errors are uncommittable.
+# Lints the STAGED snapshot (not the working tree), so the gate evaluates
+# exactly the bytes that will land in the commit.
 # Install once per clone: git config core.hooksPath .githooks
-cd "$(git rev-parse --show-toplevel)" || exit 1
+root="$(git rev-parse --show-toplevel)" || exit 1
+tmp="$(mktemp -d)" || exit 1
+trap 'rm -rf "$tmp"' 0
+git -C "$root" checkout-index --all --prefix="$tmp/" || exit 1
+cd "$tmp" || exit 1
 python3 lint.py check
 status=$?
 if [ $status -ne 0 ]; then
     echo ""
-    echo "pre-commit: lint errors block the commit. Fix them; do not bypass with --no-verify."
+    echo "pre-commit: lint errors in the staged snapshot block the commit."
+    echo "Fix the files, git add them, and retry; do not bypass with --no-verify."
 fi
 exit $status

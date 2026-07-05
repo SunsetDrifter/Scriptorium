@@ -37,7 +37,8 @@ wiki_scope:
 wiki/
 ├── CLAUDE.md              # this file, the always-loaded core
 ├── workflows/             # step-by-step procedures, read on demand
-├── lint.py                # deterministic checks + derived artifacts
+├── lint.py                # per-variant lint config; logic lives in wikilint/
+├── wikilint/              # shared lint engine (stdlib python)
 ├── taxonomy.md            # the allowed tags, lint-enforced
 ├── .githooks/             # pre-commit gate running lint.py
 ├── index.md               # repo pinning + generated catalog
@@ -83,7 +84,9 @@ module:        source_path, language, status (active|experimental|deprecated|rem
                (full|spot-check|signature-only|declared-by-owner)
 service:       source_path, deployment, modules, exposes, consumes, last_verified_commit, last_verified
 api:           api_kind (http|grpc|cli|library|event), defined_in, stability (stable|beta|experimental|deprecated), last_verified_commit
-data-model:    model_kind (db-table|type|schema|message), defined_in, storage, producers, consumers, last_verified_commit
+data-model:    model_kind (db-table|type|schema|message), defined_in, storage, last_verified_commit,
+               plus producers and consumers: forward fields stored on the data-model page itself
+               (the module/api pages that write and read it; empty lists are fine while unknown)
 architecture:  scope (system|service|module|data-flow|deployment|request-flow), includes
 adr:           adr_number, status (proposed|accepted|superseded|rejected), date, supersedes, superseded_by
 ```
@@ -120,9 +123,9 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, criticality-weighted sync drift, owner-review staleness, mermaid presence and node counts, ADR numbering in global and subsystem directories, inbox, secrets, index drift, log format. Run it instead of checking by hand; fix errors before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, criticality-weighted sync drift, owner-review staleness, mermaid presence and node counts, ADR numbering in global and subsystem directories, inbox, secrets, index drift, log format. Run it instead of checking by hand; fix errors before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
-`python3 lint.py rebuild-index` regenerates `index.md`: subsystem READMEs plus `subsystem: global` pages only, pinning block preserved above the marker. The global index never lists every module; subsystem READMEs do that. Never hand-edit below the marker; rebuild after any create, rename, or delete. `python3 lint.py reverse-deps` prints derived consumer maps. `python3 lint.py coverage` writes `coverage.md` against `wiki_scope`.
+`python3 lint.py rebuild-index` regenerates `index.md`: subsystem READMEs plus `subsystem: global` pages only, pinning block preserved above the marker. The global index never lists every module; subsystem READMEs do that. Never hand-edit below the marker; rebuild after any create, rename, or delete. `python3 lint.py reverse-deps` prints the derived reverse map of every stored relationship field (`depends_on`, `defined_in`, `modules`, `exposes`, `consumes`, `producers`, `consumers`). `python3 lint.py coverage` writes `coverage.md`: module inventory by subsystem and criticality, plus directory coverage against `wiki_scope`.
 
 ## Style rules for wiki prose
 
