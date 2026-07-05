@@ -32,13 +32,19 @@ CONFIG = {
     ],
     # Top-level entries that are allowed to exist but are not wiki pages.
     "non_page_allowed": [
-        "CLAUDE.md", "index.md", "log.md", "lint.py", "raw", "workflows",
-        ".git", ".gitignore",
+        "CLAUDE.md", "index.md", "log.md", "lint.py", "taxonomy.md", "raw", "workflows",
+        ".git", ".gitignore", ".githooks",
     ],
     "raw_dir": "raw",
     "inbox_dir": "raw/inbox",
     "inbox_warn_count": 10,
     "inbox_warn_age_days": 14,
+    # Hot-core size guard: warn when CLAUDE.md exceeds this many lines.
+    "claude_md_max_lines": 135,
+    # Every page tag must appear in this file (one `- tag — meaning` line each).
+    "taxonomy_file": "taxonomy.md",
+    # Contested pages untouched for this many days get flagged for reconcile.
+    "contested_max_days": 30,
     # Frontmatter required on every page.
     "required_fields": ["type", "created", "updated", "description", "tags"],
     # type -> extra required fields for that type.
@@ -241,8 +247,14 @@ def parse_iso_date(value):
 
 
 def strip_code_blocks(body):
-    """Remove fenced code blocks so wikilinks/secrets inside examples don't count."""
-    return re.sub(r"```.*?```", "", body, flags=re.DOTALL)
+    """Blank fenced code blocks (preserving line count) so wikilinks and
+    mention hints inside examples don't count but line numbers stay right."""
+    return re.sub(
+        r"```.*?```",
+        lambda m: "\n" * m.group(0).count("\n"),
+        body,
+        flags=re.DOTALL,
+    )
 
 
 class Page:
@@ -390,9 +402,35 @@ def check_links_and_orphans(pages, report, root):
                     )
                 else:
                     inbound[target.rel] += 1
-    for p in pages:
-        if inbound[p.rel] == 0 and p.path.name not in ("README.md", "OWNERS.md"):
-            report.warning("orphan", p.rel, "no inbound links from any page")
+    orphans = [
+        p for p in pages
+        if inbound[p.rel] == 0 and p.path.name not in ("README.md", "OWNERS.md")
+    ]
+    for p in orphans:
+        report.warning("orphan", p.rel, "no inbound links from any page")
+        report_unlinked_mentions(p, pages, report)
+
+
+def report_unlinked_mentions(orphan, pages, report):
+    """Hint generation for the cross-linker: places where an orphan's name
+    appears in prose without a wikilink."""
+    patterns = [
+        re.compile(re.escape(orphan.stem.replace("-", " ")), re.IGNORECASE),
+        re.compile(re.escape(orphan.stem), re.IGNORECASE),
+    ]
+    for other in pages:
+        if other.rel == orphan.rel:
+            continue
+        prose = strip_code_blocks(other.text)
+        for pattern in patterns:
+            m = pattern.search(prose)
+            if m:
+                line_no = prose[:m.start()].count("\n") + 1
+                report.info(
+                    "orphan", orphan.rel,
+                    f"mentioned unlinked in {other.rel}:{line_no}; candidate wikilink",
+                )
+                break
 
 
 def derive_reverse_edges(pages):
@@ -413,6 +451,85 @@ def derive_reverse_edges(pages):
                     rev.setdefault(target.rel, []).append(p.rel)
         reverse[field] = rev
     return reverse
+
+
+def check_claude_size(root, report):
+    claude = root / "CLAUDE.md"
+    if not claude.is_file():
+        return
+    lines = len(claude.read_text(encoding="utf-8", errors="replace").splitlines())
+    cap = CONFIG["claude_md_max_lines"]
+    if lines > cap:
+        report.warning(
+            "hot-core", "CLAUDE.md",
+            f"{lines} lines exceeds the {cap}-line cap; "
+            "the always-loaded core is regrowing, move detail to workflows/",
+        )
+
+
+def load_taxonomy(root):
+    path = root / CONFIG["taxonomy_file"]
+    if not path.is_file():
+        return None
+    tags = set()
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = re.match(r"^- ([a-z0-9][a-z0-9-]*)", line)
+        if m:
+            tags.add(m.group(1))
+    return tags
+
+
+def check_tags(pages, report, root):
+    taxonomy = load_taxonomy(root)
+    if taxonomy is None:
+        report.warning(
+            "tags", CONFIG["taxonomy_file"],
+            "missing; create it and list the allowed tags",
+        )
+        return
+    used = set()
+    for p in pages:
+        tags = (p.fields or {}).get("tags") or []
+        if isinstance(tags, str):
+            tags = [tags]
+        for tag in tags:
+            used.add(tag)
+            if tag not in taxonomy:
+                report.warning(
+                    "tags", p.rel,
+                    f"tag {tag!r} not in {CONFIG['taxonomy_file']}; "
+                    "normalize it or add it there in the same commit",
+                )
+    for unused in sorted(taxonomy - used):
+        report.info("tags", CONFIG["taxonomy_file"], f"tag {unused!r} is used by no page")
+
+
+def check_contested_age(pages, report):
+    today = date.today()
+    for p in pages:
+        if (p.fields or {}).get("confidence") != "contested":
+            continue
+        updated = parse_iso_date(p.fields.get("updated"))
+        if updated is None:
+            continue
+        age = (today - updated).days
+        if age > CONFIG["contested_max_days"]:
+            report.warning(
+                "contested", p.rel,
+                f"contested and untouched for {age} days "
+                f"(limit {CONFIG['contested_max_days']}); run reconcile",
+            )
+
+
+def check_inferred_markers(pages, report):
+    for p in pages:
+        if "(inferred)" not in strip_code_blocks(p.body):
+            continue
+        if (p.fields or {}).get("confidence") not in ("low", "contested"):
+            report.warning(
+                "provenance", p.rel,
+                "contains '(inferred)' claims but confidence is not low",
+            )
 
 
 def check_inbox(root, report):
@@ -729,6 +846,10 @@ def run_check(root):
     check_frontmatter(pages, report)
     check_filenames(pages, report)
     check_links_and_orphans(pages, report, root)
+    check_claude_size(root, report)
+    check_tags(pages, report, root)
+    check_contested_age(pages, report)
+    check_inferred_markers(pages, report)
     check_inbox(root, report)
     check_secrets(pages, report)
     check_staleness(pages, report, root)

@@ -35,6 +35,8 @@ wiki/
 ├── CLAUDE.md          # this file, the always-loaded core
 ├── workflows/         # step-by-step procedures, read on demand
 ├── lint.py            # deterministic checks + index rebuild (stdlib python)
+├── taxonomy.md        # the allowed tags, lint-enforced
+├── .githooks/         # pre-commit gate running lint.py
 ├── index.md           # repo pinning block + generated content catalog
 ├── log.md             # chronological history, append-only
 ├── raw/               # immutable sources: inbox/, transcripts/, external-docs/, decisions/, assets/
@@ -53,7 +55,7 @@ wiki/
 
 ## Page types and frontmatter
 
-Every page starts with YAML frontmatter. All pages require `type`, `created`, `updated`, `description` (one accurate sentence; it is how pages are found without being opened), and `tags`. Optional on any page: `sources` (wiki paths backing the page) and `confidence: low | contested` (absent means normal; a `contested` page must explain the disagreement in its body).
+Every page starts with YAML frontmatter. All pages require `type`, `created`, `updated`, `description` (one accurate sentence; it is how pages are found without being opened), and `tags` (each tag must appear in `taxonomy.md`; introducing one means adding it there in the same commit). Optional on any page: `sources` (wiki paths backing the page) and `confidence: low | contested` (absent means normal; a `contested` page must explain the disagreement in its body, and contested is a state to exit, not a resting place: reconcile it). Mark claims you inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
 
 Extra required fields by type:
 
@@ -90,10 +92,12 @@ When the human triggers an operation, read the matching file and follow it exact
 | "log postmortem: X" | `workflows/postmortem.md` |
 | a question answerable from the wiki or the code | `workflows/query.md` |
 | "lint the wiki" | `workflows/lint.md` |
+| "reconcile <page>" | `workflows/reconcile.md` |
+| "maintenance pass" / "review maintenance" | `workflows/maintain.md` |
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans, dangling references (including `defined_in` and `includes`), sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter, preserving the pinning block above the generated marker. The index is a derived artifact: never hand-edit anything below the marker, and rebuild at the end of any operation that creates, renames, or deletes pages. `python3 lint.py reverse-deps` prints who depends on what, derived from the stored edges.
 
