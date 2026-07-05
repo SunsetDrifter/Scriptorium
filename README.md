@@ -16,11 +16,12 @@ Schemas for LLM-maintained markdown wikis. Each variant is a self-contained temp
 ```sh
 mkdir my-wiki && cd my-wiki && git init
 cp -r path/to/Scriptorium/<variant>/ .
+git config core.hooksPath .githooks   # lint errors become uncommittable
 mkdir -p raw/inbox
 python3 lint.py check     # should pass on the empty wiki
 ```
 
-Then open the wiki in Claude Code (or any agent that reads `CLAUDE.md`) and drop sources into `raw/inbox/`.
+Then open the wiki in Claude Code (or any agent that reads `CLAUDE.md`) and drop sources into `raw/inbox/`. If the wiki is hosted, also run `python3 lint.py check` in CI so the gate holds for every clone.
 
 ## Design
 
@@ -30,7 +31,20 @@ The schemas follow a few rules, informed by how agent-maintained wikis actually 
 - **If a rule can be a script, it is a script.** `lint.py check` covers frontmatter validation, broken wikilinks, orphans, dangling references, staleness, secrets, ADR integrity, index drift, and log format. The LLM lint workflow keeps only what needs judgment: contradictions, stale claims, concept gaps.
 - **Every relationship is stored once.** Pages declare their forward edges (`depends_on`, `defined_in`, `consumes`); reverse views are derived by `lint.py reverse-deps`. Agents reliably fail to keep hand-maintained symmetric fields consistent, so the schemas don't ask them to.
 - **The index is a derived artifact.** Every page carries a one-line `description:`; `lint.py rebuild-index` generates `index.md` from frontmatter. Agents scan frontmatter first and open page bodies only on a hit.
-- **Trust is structural, not remembered.** Immutable `raw/`, append-only `log.md`, a git commit per operation, and commit-pinned verification fields. Agent-maintained judgment metadata decays, so `confidence:` is reduced to the two states a lint can actually check (`low` = uncited, `contested` = sources disagree and the body must explain).
+- **Trust is structural, not remembered.** Immutable `raw/`, append-only `log.md`, a git commit per operation, a pre-commit hook that makes lint errors uncommittable, and commit-pinned verification fields. Agent-maintained judgment metadata decays, so `confidence:` is reduced to the two states a lint can actually check (`low` = uncited, `contested` = sources disagree and the body must explain), inferred claims are marked inline with `(inferred)`, and tags are validated against a `taxonomy.md`.
+- **Contested is a state to exit.** The documented failure mode of agent wikis is contradictions accumulating faster than they resolve. Lint flags contested pages older than 30 days; the reconcile workflow rewrites in place, moving losing claims to a dated "Superseded claims" section instead of deleting them.
+- **Autonomous but reversible.** The maintenance workflow runs unattended on a `maintenance` branch with an exhaustively-listed set of safe actions (mechanical fixes, index rebuild, unambiguous cross-links); everything else becomes a proposal. The human reviews the branch diff and merges. Nothing automated ever lands on main directly.
+
+## Unattended maintenance
+
+Each variant ships a `workflows/maintain.md` pass designed for scheduled runs. Example with Claude Code on cron:
+
+```sh
+# nightly, from the wiki root
+0 3 * * * cd ~/my-wiki && claude -p "maintenance pass" --permission-mode acceptEdits
+```
+
+The run commits to the `maintenance` branch only. Review with "review maintenance" in a normal session, then merge. If a run hits something outside its allowed actions (a secrets hit, an ambiguous fix), it leaves the tree uncommitted and reports the blocker instead.
 
 ## Deliberately not adopted
 

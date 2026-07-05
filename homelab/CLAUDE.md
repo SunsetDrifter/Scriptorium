@@ -20,6 +20,8 @@ wiki/
 ├── CLAUDE.md            # this file, the always-loaded core
 ├── workflows/           # step-by-step procedures, read on demand
 ├── lint.py              # deterministic checks + index rebuild (stdlib python)
+├── taxonomy.md          # the allowed tags, lint-enforced
+├── .githooks/           # pre-commit gate running lint.py
 ├── index.md             # content catalog, generated from frontmatter
 ├── log.md               # chronological history, append-only
 ├── raw/                 # immutable sources, human-owned
@@ -79,7 +81,9 @@ includes: [components/proxmox-01.md, components/opnsense.md]
 Rules:
 - `last_verified` on components is the most important field in the schema. Older than 60 days gets flagged by lint.
 - `depends_on` is the only stored dependency edge. Reverse edges (what consumes a component) are derived, never stored: `python3 lint.py reverse-deps` prints the map.
-- `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means sources or the human disagree, and the page body must explain the disagreement.
+- `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means sources or the human disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
+- Every tag must appear in `taxonomy.md`; introducing a tag means adding it there, with a one-line meaning, in the same commit.
+- Mark claims you inferred rather than confirmed with `(inferred)` inline; a page containing any carries `confidence: low`.
 - File names are kebab-case: `proxmox-01.md`, `vlan-10-mgmt.md`. Use `[[wikilinks]]` for all internal references.
 
 ## Diagrams
@@ -98,10 +102,12 @@ When the human triggers an operation, read the matching file and follow it exact
 | "log incident: <thing>" | `workflows/incident.md` |
 | a question answerable from the wiki | `workflows/query.md` |
 | "lint the wiki" | `workflows/lint.md` |
+| "reconcile <page>" | `workflows/reconcile.md` |
+| "maintenance pass" / "review maintenance" | `workflows/maintain.md` |
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans, dangling references, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter. The index is a derived artifact: never hand-edit anything below its generated marker, and rebuild it at the end of any operation that creates, renames, or deletes pages (or bumps a component's `status`/`last_verified`).
 
