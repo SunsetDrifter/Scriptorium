@@ -5,7 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from helpers import DAYS_AGO_41, DAYS_AGO_95, TODAY, findings, gather, make_wiki, page, use_variant
+from helpers import (
+    DAYS_AGO_41, DAYS_AGO_95, TODAY, findings, gather, make_wiki, page,
+    use_variant, use_variant_with,
+)
 
 
 class WikiTest(unittest.TestCase):
@@ -301,6 +304,147 @@ class TestCoverage(WikiTest):
         self.assertIn("auth: 1 module pages (1 load-bearing)", coverage)
         self.assertIn("uncovered: `libs/auth-extra`", coverage)
         self.assertIn("1/2 first-level directories covered (50%)", coverage)
+
+
+class TestMarkdownLinks(WikiTest):
+    def test_off_by_default(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A.", body="See [gone](missing.md).\n"),
+        })
+        report = gather(root)
+        self.assertEqual(findings(report, "md-link"), [])
+
+    def test_broken_link_flagged_with_file_accurate_line(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A.", body="See [gone](missing.md).\n"),
+        })
+        use_variant_with("generic", markdown_links=True)
+        hits = findings(gather(root), "md-link", "ERROR")
+        self.assertEqual(len(hits), 1)
+        # frontmatter is 8 lines + 1 blank: the body's first line is file line 10
+        self.assertTrue(hits[0][2].endswith(":10"), hits[0][2])
+
+    def test_resolving_targets_pass_and_count_inbound(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page(
+                "concept", "A.",
+                body="See [b](b-note.md), [lab](../lab-dir/), [f](../lab-dir/x.txt),\n"
+                     "[ext](https://example.com), [mail](mailto:x@y.z), [top](#anchor),\n"
+                     "and [frag](b-note.md#section).\n"),
+            "concepts/b-note.md": page("concept", "B."),
+            "lab-dir/x.txt": "not markdown\n",
+        })
+        use_variant_with("generic", markdown_links=True,
+                         non_page_allowed=["lab-dir", "CLAUDE.md", "index.md", "log.md",
+                                           "lint.py", "wikilint", "taxonomy.md", "raw", "workflows"])
+        report = gather(root)
+        self.assertEqual(findings(report, "md-link"), [])
+        orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
+        self.assertNotIn("concepts/b-note.md", orphans)  # md link counted inbound
+        self.assertIn("concepts/a-note.md", orphans)
+
+    def test_inline_code_span_not_treated_as_link(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A.",
+                                       body="Quoted `[x](not-a-real-file.md)` in code.\n"),
+        })
+        use_variant_with("generic", markdown_links=True)
+        self.assertEqual(findings(gather(root), "md-link"), [])
+
+
+class TestEngineExtensionPoints(WikiTest):
+    def test_orphans_gate_off(self):
+        root = make_wiki(self.tmp, files={
+            "queries/orphan-question.md": page("query", "Nobody links here."),
+        })
+        use_variant_with("generic", orphans=False)
+        self.assertEqual(findings(gather(root), "orphan"), [])
+
+    def test_non_page_allowed_globs(self):
+        root = make_wiki(self.tmp, files={
+            "lab-2026-01-01-x/README.md": "a lab\n",
+            "mystery/notes.md": "unexpected\n",
+        })
+        config = use_variant("generic")
+        use_variant_with("generic",
+                         non_page_allowed=list(config["non_page_allowed"]) + ["lab-*"])
+        flagged = [p for _, _, p, _ in findings(gather(root), "layout", "WARNING")]
+        self.assertNotIn("lab-2026-01-01-x", flagged)
+        self.assertIn("mystery", flagged)
+
+    def test_custom_index_file_and_body(self):
+        def table_body(pages):
+            rows = ["| Page |", "|---|"]
+            for p in sorted(pages, key=lambda p: p.rel):
+                rows.append(f"| [{p.stem}]({p.path.name}) |")
+            return "\n".join(rows) + "\n"
+
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A."),
+        })
+        use_variant_with("generic", index_file="concepts/INDEX.md",
+                         index_body_fn=table_body)
+        from wikilint.derived import rebuild_index
+        rebuild_index(root)
+        text = (root / "concepts/INDEX.md").read_text()
+        self.assertIn("| [a-note](a-note.md) |", text)
+        report = gather(root)
+        # INDEX.md inside a page dir is skipped by discovery (no frontmatter
+        # error) and the freshly rebuilt index shows no drift.
+        self.assertEqual(findings(report, "frontmatter", "ERROR"), [])
+        self.assertEqual(findings(report, "index"), [])
+        (root / "concepts/INDEX.md").write_text(text + "| stale row |\n")
+        drift = findings(gather(root), "index", "WARNING")
+        self.assertEqual([p for _, _, p, _ in drift], ["concepts/INDEX.md"])
+
+    def test_secret_extra_patterns_and_allowlist(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/token.md": page("concept", "T.", body="pat nbp_abc12345XYZ here\n"),
+            "concepts/template.md": page(
+                "concept", "Tpl.", body="AUTH_SECRET=${server.authSecret}\n"),
+        })
+        use_variant_with(
+            "generic",
+            extra_secret_patterns=[(r"\bnbp_[A-Za-z0-9]{8,}", "netbird PAT")],
+            secret_allow_res=[r"\$\{[^}]*\}"],
+        )
+        hits = findings(gather(root), "secrets", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("netbird PAT", hits[0][3])
+        self.assertTrue(hits[0][2].startswith("concepts/token.md:"))
+
+    def test_iso_date_fields_configurable(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/dated.md": page("concept", "D.", extra_fm="date: not-a-date\n"),
+        })
+        use_variant_with("generic",
+                         iso_date_fields=["created", "updated", "date"])
+        messages = [m for _, _, _, m in findings(gather(root), "frontmatter", "ERROR")]
+        self.assertTrue(any("date is not an ISO date" in m for m in messages))
+
+    def test_none_gates_disable_log_tags_inbox(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/tagged.md": page("concept", "Tagged.", tags="[gamma]"),
+        })
+        (root / "log.md").unlink()
+        (root / "taxonomy.md").unlink()
+        use_variant_with("generic", log_file=None, taxonomy_file=None,
+                         inbox_dir=None)
+        report = gather(root)  # must not crash on inbox_dir=None
+        self.assertEqual(findings(report, "log"), [])
+        self.assertEqual(findings(report, "tags"), [])
+
+    def test_extra_checks_run(self):
+        def custom(pages, report, root):
+            report.info("custom", "x", f"saw {len(pages)} pages")
+
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A."),
+        })
+        use_variant_with("generic", extra_checks=[custom])
+        hits = findings(gather(root), "custom", "INFO")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("saw 1 pages", hits[0][3])
 
 
 if __name__ == "__main__":

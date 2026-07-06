@@ -29,6 +29,16 @@ def use_variant(variant):
     return config
 
 
+def use_variant_with(variant, **overrides):
+    """Configure a variant's CONFIG with keys overridden (for testing the
+    opt-in engine extension points). Call AFTER make_wiki, which reconfigures
+    with the stock variant config."""
+    config, extra = load_variant_config(variant)
+    config = {**config, **overrides}
+    configure(config, extra)
+    return config
+
+
 def page(ptype, description, extra_fm="", body="Body.\n", tags="[alpha]",
          created=TODAY, updated=None):
     updated = updated or created
