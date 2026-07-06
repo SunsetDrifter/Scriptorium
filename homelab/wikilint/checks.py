@@ -5,9 +5,9 @@ import re
 from datetime import date, datetime
 
 from .model import (
-    ADR_FILE_RE, FILENAME_EXEMPT, KEBAB_RE, LOG_HEADER_RE, SECRET_PATTERNS,
-    WIKILINK_RE, build_link_index, line_at, parse_index_pinning,
-    parse_iso_date, resolve_link,
+    ADR_FILE_RE, FILENAME_EXEMPT, KEBAB_RE, LOG_HEADER_RE, MD_LINK_RE,
+    SECRET_PATTERNS, WIKILINK_RE, build_link_index, line_at,
+    parse_index_pinning, parse_iso_date, resolve_link,
 )
 from .settings import CONFIG
 
@@ -48,12 +48,15 @@ def check_enums(p, ptype, report):
 
 
 def check_dates(p, report):
-    created = parse_iso_date(p.fields.get("created"))
-    updated = parse_iso_date(p.fields.get("updated"))
-    if p.fields.get("created") and created is None:
-        report.error("frontmatter", p.rel, "created is not an ISO date")
-    if p.fields.get("updated") and updated is None:
-        report.error("frontmatter", p.rel, "updated is not an ISO date")
+    parsed = {}
+    for field in CONFIG.get("iso_date_fields", ["created", "updated"]):
+        value = p.fields.get(field)
+        if not value:
+            continue
+        parsed[field] = parse_iso_date(value)
+        if parsed[field] is None:
+            report.error("frontmatter", p.rel, f"{field} is not an ISO date")
+    created, updated = parsed.get("created"), parsed.get("updated")
     if created and updated and updated < created:
         report.error("frontmatter", p.rel, "updated is older than created")
 
@@ -66,8 +69,36 @@ def check_filenames(pages, report):
             report.warning("filename", p.rel, "not kebab-case")
 
 
+def blank_inline_code(text):
+    """Blank `inline code` spans (length-preserving) so link-shaped text
+    inside them is not treated as a markdown link."""
+    return re.sub(r"`[^`\n]*`", lambda m: " " * len(m.group(0)), text)
+
+
+def check_markdown_links(p, pages_by_path, report):
+    """Every relative [text](target) link must resolve on the filesystem
+    (file or directory). Returns the resolved page targets for inbound
+    counting. External, mailto:, and pure-anchor targets are skipped."""
+    resolved_pages = []
+    prose = blank_inline_code(p.prose)  # full text: line numbers are file-accurate
+    for m in MD_LINK_RE.finditer(prose):
+        target = m.group(1).split("#")[0]
+        if not target or "://" in target or target.startswith(("mailto:", "//")):
+            continue
+        path = (p.path.parent / target).resolve()
+        if not path.exists():
+            report.error(
+                "md-link", f"{p.rel}:{line_at(prose, m.start())}",
+                f"broken relative link ({m.group(1)})",
+            )
+        elif path in pages_by_path:
+            resolved_pages.append(pages_by_path[path])
+    return resolved_pages
+
+
 def check_links_and_orphans(pages, report):
     by_stem, by_rel = build_link_index(pages)
+    pages_by_path = {p.path.resolve(): p for p in pages}
     inbound = {p.rel: 0 for p in pages}
     for p in pages:
         for m in WIKILINK_RE.finditer(p.body_prose):
@@ -76,6 +107,10 @@ def check_links_and_orphans(pages, report):
                 report.error("wikilink", p.rel, f"broken link [[{m.group(1)}]]")
             elif target.rel != p.rel:
                 inbound[target.rel] += 1
+        if CONFIG.get("markdown_links", False):
+            for target in check_markdown_links(p, pages_by_path, report):
+                if target.rel != p.rel:
+                    inbound[target.rel] += 1
         for field in CONFIG["path_fields"] + CONFIG["edge_fields"]:
             for value in p.field_list(field):
                 target = resolve_link(value, by_stem, by_rel)
@@ -86,6 +121,8 @@ def check_links_and_orphans(pages, report):
                     )
                 elif target.rel != p.rel:
                     inbound[target.rel] += 1
+    if not CONFIG.get("orphans", True):
+        return
     orphans = [
         p for p in pages
         if inbound[p.rel] == 0 and p.path.name not in FILENAME_EXEMPT
@@ -171,6 +208,8 @@ def load_taxonomy(root):
 
 
 def check_tags(pages, report, root):
+    if CONFIG.get("taxonomy_file") is None:
+        return
     taxonomy = load_taxonomy(root)
     if taxonomy is None:
         report.warning(
@@ -221,6 +260,8 @@ def check_inferred_markers(pages, report):
 
 
 def check_inbox(root, report):
+    if CONFIG.get("inbox_dir") is None:
+        return
     inbox = root / CONFIG["inbox_dir"]
     if not inbox.is_dir():
         return
@@ -234,14 +275,29 @@ def check_inbox(root, report):
             report.warning("inbox", item.name, f"in inbox for {age} days")
 
 
+def secret_patterns():
+    return SECRET_PATTERNS + [
+        (re.compile(pattern), label)
+        for pattern, label in CONFIG.get("extra_secret_patterns", [])
+    ]
+
+
+def scan_text_for_secrets(text, rel, report):
+    """Scan one file's text; matches whose line matches any allow regex are
+    suppressed (template placeholders, redaction markers)."""
+    allow = [re.compile(a) for a in CONFIG.get("secret_allow_res", [])]
+    lines = text.split("\n")
+    for pattern, label in secret_patterns():
+        for m in pattern.finditer(text):
+            line_no = line_at(text, m.start())
+            if any(a.search(lines[line_no - 1]) for a in allow):
+                continue
+            report.error("secrets", f"{rel}:{line_no}", f"possible {label}")
+
+
 def check_secrets(pages, report):
     for p in pages:
-        for pattern, label in SECRET_PATTERNS:
-            for m in pattern.finditer(p.text):
-                report.error(
-                    "secrets", f"{p.rel}:{line_at(p.text, m.start())}",
-                    f"possible {label}",
-                )
+        scan_text_for_secrets(p.text, p.rel, report)
 
 
 def check_field_staleness(pages, report):
@@ -375,9 +431,12 @@ def check_adr_dir(dir_path, pages, report, root):
 
 
 def check_log(root, report):
-    log = root / "log.md"
+    log_file = CONFIG.get("log_file", "log.md")
+    if log_file is None:
+        return
+    log = root / log_file
     if not log.is_file():
-        report.warning("log", "log.md", "missing")
+        report.warning("log", log_file, "missing")
         return
     text = log.read_text(encoding="utf-8", errors="replace")
     for i, line in enumerate(text.splitlines(), 1):

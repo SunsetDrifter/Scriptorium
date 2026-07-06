@@ -42,7 +42,14 @@ def run_reverse_deps(root):
     return 0
 
 
+def index_path(root):
+    return root / CONFIG.get("index_file", "index.md")
+
+
 def generate_index_body(pages):
+    body_fn = CONFIG.get("index_body_fn")
+    if body_fn is not None:
+        return body_fn(pages)
     lines = []
     if CONFIG["index_mode"] == "subsystems":
         lines.extend(_subsystem_section(pages))
@@ -78,7 +85,8 @@ def _subsystem_section(pages):
 def rebuild_index(root):
     report = Report()
     pages = discover_pages(root, report)
-    index = root / "index.md"
+    index = index_path(root)
+    index_name = index.relative_to(root).as_posix()
     head = "# Index\n\n"
     if index.is_file():
         existing = index.read_text(encoding="utf-8", errors="replace")
@@ -90,23 +98,26 @@ def rebuild_index(root):
                 head = existing[:m.end()] + "\n\n"
     body = generate_index_body(pages)
     index.write_text(f"{head}{GENERATED_MARKER}\n\n{body}", encoding="utf-8")
-    entries = sum(1 for line in body.splitlines() if line.startswith("- "))
-    print(f"index.md rebuilt: {entries} entries")
+    entries = sum(
+        1 for line in body.splitlines() if line.startswith(("- ", "| "))
+    )
+    print(f"{index_name} rebuilt: {entries} entries")
     return 0
 
 
 def check_index_drift(pages, report, root):
-    index = root / "index.md"
+    index = index_path(root)
+    index_name = index.relative_to(root).as_posix()
     if not index.is_file():
-        report.warning("index", "index.md", "missing; run `python3 lint.py rebuild-index`")
+        report.warning("index", index_name, "missing; run `python3 lint.py rebuild-index`")
         return
     existing = index.read_text(encoding="utf-8", errors="replace")
     if GENERATED_MARKER not in existing:
-        report.warning("index", "index.md", "no generated marker; run `python3 lint.py rebuild-index`")
+        report.warning("index", index_name, "no generated marker; run `python3 lint.py rebuild-index`")
         return
     current = existing.split(GENERATED_MARKER, 1)[1].lstrip("\n")
     if current != generate_index_body(pages):
-        report.warning("index", "index.md", "out of date; run `python3 lint.py rebuild-index`")
+        report.warning("index", index_name, "out of date; run `python3 lint.py rebuild-index`")
 
 
 def source_path_covers(source_paths, rel):

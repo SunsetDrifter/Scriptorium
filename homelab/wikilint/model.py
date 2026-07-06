@@ -2,6 +2,7 @@
 
 import re
 from datetime import date
+from fnmatch import fnmatch
 from pathlib import Path
 
 from .settings import CONFIG
@@ -23,6 +24,8 @@ SECRET_PATTERNS = [
 ]
 
 WIKILINK_RE = re.compile(r"\[\[([^\]\n]+?)\]\]")
+# [text](target) markdown links, excluding images; target is group 1.
+MD_LINK_RE = re.compile(r"(?<!\!)\[[^\]\n]*\]\(([^)\s]+)\)")
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 LOG_HEADER_RE = re.compile(r"^## \[\d{4}-\d{2}-\d{2}\] [a-z][a-z-]*(?: \| .+)?$")
 ADR_FILE_RE = re.compile(r"^(\d{4})-[a-z0-9-]+\.md$")
@@ -188,20 +191,30 @@ class Page:
 
 
 def discover_pages(root, report):
+    index_rel = CONFIG.get("index_file", "index.md")
     pages = []
     for d in CONFIG["page_dirs"]:
         dir_path = root / d
         if not dir_path.is_dir():
             continue
         for path in sorted(dir_path.rglob("*.md")):
+            # The generated index is a derived artifact, not a page, even
+            # when index_file places it inside a page dir.
+            if path.relative_to(root).as_posix() == index_rel:
+                continue
             pages.append(Page(path, root))
-    known = set(CONFIG["page_dirs"]) | set(CONFIG["non_page_allowed"])
+    # non_page_allowed entries are fnmatch patterns; exact names still match.
+    known = list(CONFIG["page_dirs"]) + list(CONFIG["non_page_allowed"])
     for entry in sorted(root.iterdir()):
-        if entry.name not in known and not entry.name.startswith("."):
-            report.warning(
-                "layout", entry.name,
-                "unknown top-level entry; the schema says ask before inventing folders",
-            )
+        name = entry.name
+        if name.startswith("."):
+            continue
+        if any(fnmatch(name, pattern) for pattern in known):
+            continue
+        report.warning(
+            "layout", name,
+            "unknown top-level entry; the schema says ask before inventing folders",
+        )
     return pages
 
 
@@ -243,9 +256,9 @@ def _pinning_fence(text):
 
 
 def parse_index_pinning(root):
-    """Parse the yaml pinning block at the top of index.md, if any.
+    """Parse the yaml pinning block at the top of the index, if any.
     Handles quoted scalars and both inline and block-style nested lists."""
-    index = root / "index.md"
+    index = root / CONFIG.get("index_file", "index.md")
     if not index.is_file():
         return {}
     block = _pinning_fence(index.read_text(encoding="utf-8", errors="replace"))

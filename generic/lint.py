@@ -80,6 +80,26 @@ CONFIG = {
     "owner_review_max_days": None,
     # Coverage report (large variant only).
     "coverage": False,
+    # --- Engine extension points (defaults preserve original behavior) ---
+    # Check that relative [text](target.md) markdown links resolve on disk.
+    "markdown_links": False,
+    # Report pages with no inbound links (plus unlinked-mention hints).
+    "orphans": True,
+    # Path of the generated index, relative to the wiki root.
+    "index_file": "index.md",
+    # Callable(pages) -> str replacing the built-in index body generator.
+    "index_body_fn": None,
+    # Frontmatter fields validated as ISO dates when present.
+    "iso_date_fields": ["created", "updated"],
+    # Extra (regex, label) pairs appended to the secrets scan.
+    "extra_secret_patterns": [],
+    # Secrets matches on lines matching any of these regexes are suppressed
+    # (template placeholders, redaction markers).
+    "secret_allow_res": [],
+    # Append-only operations log checked by check_log. None disables.
+    "log_file": "log.md",
+    # Callables(pages, report, root) run at the end of every check pass.
+    "extra_checks": [],
 }
 
 
