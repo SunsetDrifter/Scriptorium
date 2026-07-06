@@ -39,6 +39,8 @@ def gather_report(root):
     checks.check_adrs(pages, report, root)
     checks.check_log(root, report)
     check_index_drift(pages, report, root)
+    for extra in CONFIG.get("extra_checks", []):
+        extra(pages, report, root)
     return len(pages), report
 
 
