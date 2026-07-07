@@ -3,7 +3,7 @@
 import re
 from datetime import date
 from fnmatch import fnmatch
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from .settings import CONFIG
 
@@ -24,8 +24,15 @@ SECRET_PATTERNS = [
 ]
 
 WIKILINK_RE = re.compile(r"\[\[([^\]\n]+?)\]\]")
-# [text](target) markdown links, excluding images; target is group 1.
-MD_LINK_RE = re.compile(r"(?<!\!)\[[^\]\n]*\]\(([^)\s]+)\)")
+# [text](target) markdown links, excluding images; target is group 1. An
+# optional "title" after the target is tolerated. Images are blanked first
+# (blank_images) so an image wrapped in a link exposes the link's target.
+MD_LINK_RE = re.compile(r"(?<!\!)\[[^\]\n]*\]\(([^)\s]+)(?:\s+\"[^\"\n]*\")?\)")
+# ![alt](src) image links, blanked before markdown-link scanning.
+IMAGE_MD_RE = re.compile(r"!\[[^\]\n]*\]\([^)\n]*\)")
+# Inline code spans: a run of N backticks, content, then N backticks. Matching
+# the run length blanks double-backtick spans (``...``), not just single ones.
+INLINE_CODE_RE = re.compile(r"(`+)[^\n]*?\1")
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 LOG_HEADER_RE = re.compile(r"^## \[\d{4}-\d{2}-\d{2}\] [a-z][a-z-]*(?: \| .+)?$")
 ADR_FILE_RE = re.compile(r"^(\d{4})-[a-z0-9-]+\.md$")
@@ -148,6 +155,37 @@ def strip_code_blocks(body):
     )
 
 
+def _blank(match):
+    """Replace a match with spaces of equal length, preserving newlines so
+    character offsets and line numbers stay accurate."""
+    return "".join("\n" if c == "\n" else " " for c in match.group(0))
+
+
+def blank_inline_code(text):
+    """Blank `inline code` spans (length- and line-preserving) so link-shaped
+    text inside them is not treated as a wiki or markdown link. Handles
+    multi-backtick spans."""
+    return INLINE_CODE_RE.sub(_blank, text)
+
+
+def blank_images(text):
+    """Blank ![alt](src) image links so they are not mistaken for markdown
+    page links, and so an image wrapped in a link exposes the outer target."""
+    return IMAGE_MD_RE.sub(_blank, text)
+
+
+def blank_frontmatter(text):
+    """Blank the leading YAML frontmatter block (line-preserving) so body
+    scanners see only body content while keeping file-accurate line numbers."""
+    if not text.startswith("---"):
+        return text
+    lines = text.split("\n")
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return "\n".join([""] * (i + 1) + lines[i + 1:])
+    return text
+
+
 def line_at(text, offset):
     """1-based line number of a character offset."""
     return text[:offset].count("\n") + 1
@@ -160,8 +198,10 @@ class Page:
         self.text = path.read_text(encoding="utf-8", errors="replace")
         self.fields, self.fm_error = parse_frontmatter(self.text)
         self.body = self._body_text()
-        self.prose = strip_code_blocks(self.text)       # full text, file-accurate lines
-        self.body_prose = strip_code_blocks(self.body)  # body only, for content checks
+        # Code (fenced and inline) is blanked length-preservingly so link and
+        # mention scanners ignore it uniformly while line numbers stay accurate.
+        self.prose = blank_inline_code(strip_code_blocks(self.text))
+        self.body_prose = blank_inline_code(strip_code_blocks(self.body))
 
     def _body_text(self):
         # Mirror parse_frontmatter's delimiter handling (strip before compare)
@@ -191,7 +231,10 @@ class Page:
 
 
 def discover_pages(root, report):
-    index_rel = CONFIG.get("index_file", "index.md")
+    # Normalize through PurePosixPath so "./x" and "x" compare equal to the
+    # path pathlib actually writes/reads for the index.
+    index_file = CONFIG["index_file"]
+    index_rel = PurePosixPath(index_file).as_posix() if index_file else None
     pages = []
     for d in CONFIG["page_dirs"]:
         dir_path = root / d
@@ -200,11 +243,16 @@ def discover_pages(root, report):
         for path in sorted(dir_path.rglob("*.md")):
             # The generated index is a derived artifact, not a page, even
             # when index_file places it inside a page dir.
-            if path.relative_to(root).as_posix() == index_rel:
+            if index_rel is not None and path.relative_to(root).as_posix() == index_rel:
                 continue
             pages.append(Page(path, root))
     # non_page_allowed entries are fnmatch patterns; exact names still match.
+    # The generated index and the log are engine artifacts, so allow whichever
+    # top-level entry they live under even when relocated.
     known = list(CONFIG["page_dirs"]) + list(CONFIG["non_page_allowed"])
+    for artifact in (CONFIG["index_file"], CONFIG["log_file"]):
+        if artifact:
+            known.append(PurePosixPath(artifact).parts[0])
     for entry in sorted(root.iterdir()):
         name = entry.name
         if name.startswith("."):
@@ -258,7 +306,9 @@ def _pinning_fence(text):
 def parse_index_pinning(root):
     """Parse the yaml pinning block at the top of the index, if any.
     Handles quoted scalars and both inline and block-style nested lists."""
-    index = root / CONFIG.get("index_file", "index.md")
+    if CONFIG["index_file"] is None:
+        return {}
+    index = root / CONFIG["index_file"]
     if not index.is_file():
         return {}
     block = _pinning_fence(index.read_text(encoding="utf-8", errors="replace"))

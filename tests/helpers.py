@@ -23,12 +23,6 @@ def load_variant_config(variant):
     return ns["CONFIG"], ns["index_entry_extra"]
 
 
-def use_variant(variant):
-    config, extra = load_variant_config(variant)
-    configure(config, extra)
-    return config
-
-
 def use_variant_with(variant, **overrides):
     """Configure a variant's CONFIG with keys overridden (for testing the
     opt-in engine extension points). Call AFTER make_wiki, which reconfigures
@@ -37,6 +31,10 @@ def use_variant_with(variant, **overrides):
     config = {**config, **overrides}
     configure(config, extra)
     return config
+
+
+def use_variant(variant):
+    return use_variant_with(variant)
 
 
 def page(ptype, description, extra_fm="", body="Body.\n", tags="[alpha]",

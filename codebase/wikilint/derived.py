@@ -43,11 +43,14 @@ def run_reverse_deps(root):
 
 
 def index_path(root):
-    return root / CONFIG.get("index_file", "index.md")
+    """Absolute path of the generated index, or None when the index is
+    disabled (index_file is None)."""
+    index_file = CONFIG["index_file"]
+    return root / index_file if index_file is not None else None
 
 
 def generate_index_body(pages):
-    body_fn = CONFIG.get("index_body_fn")
+    body_fn = CONFIG["index_body_fn"]
     if body_fn is not None:
         return body_fn(pages)
     lines = []
@@ -86,7 +89,11 @@ def rebuild_index(root):
     report = Report()
     pages = discover_pages(root, report)
     index = index_path(root)
+    if index is None:
+        print("index is disabled (index_file is None); nothing to rebuild")
+        return 0
     index_name = index.relative_to(root).as_posix()
+    index.parent.mkdir(parents=True, exist_ok=True)
     head = "# Index\n\n"
     if index.is_file():
         existing = index.read_text(encoding="utf-8", errors="replace")
@@ -98,15 +105,20 @@ def rebuild_index(root):
                 head = existing[:m.end()] + "\n\n"
     body = generate_index_body(pages)
     index.write_text(f"{head}{GENERATED_MARKER}\n\n{body}", encoding="utf-8")
-    entries = sum(
-        1 for line in body.splitlines() if line.startswith(("- ", "| "))
-    )
-    print(f"{index_name} rebuilt: {entries} entries")
+    # The built-in body lists entries as "- " lines; a custom index_body_fn can
+    # use any format, so report page count rather than guess at "entries".
+    if CONFIG["index_body_fn"] is not None:
+        print(f"{index_name} rebuilt ({len(pages)} pages)")
+    else:
+        entries = sum(1 for line in body.splitlines() if line.startswith("- "))
+        print(f"{index_name} rebuilt: {entries} entries")
     return 0
 
 
 def check_index_drift(pages, report, root):
     index = index_path(root)
+    if index is None:
+        return
     index_name = index.relative_to(root).as_posix()
     if not index.is_file():
         report.warning("index", index_name, "missing; run `python3 lint.py rebuild-index`")
@@ -115,8 +127,11 @@ def check_index_drift(pages, report, root):
     if GENERATED_MARKER not in existing:
         report.warning("index", index_name, "no generated marker; run `python3 lint.py rebuild-index`")
         return
-    current = existing.split(GENERATED_MARKER, 1)[1].lstrip("\n")
-    if current != generate_index_body(pages):
+    # rebuild_index writes exactly "{head}{MARKER}\n\n{body}", so compare the
+    # post-marker text against the same "\n\n"+body rather than lstrip-ing,
+    # which would also strip a body that legitimately starts with a newline.
+    current = existing.split(GENERATED_MARKER, 1)[1]
+    if current != f"\n\n{generate_index_body(pages)}":
         report.warning("index", index_name, "out of date; run `python3 lint.py rebuild-index`")
 
 
@@ -136,7 +151,8 @@ def run_coverage(root):
     pinning = parse_index_pinning(root)
     local = pinning.get("local_path")
     if not local:
-        print("coverage: no local_path in index.md pinning block; skipping")
+        index_name = CONFIG["index_file"] or "the index"
+        print(f"coverage: no local_path in {index_name} pinning block; skipping")
         return 0
     repo = Path(local).expanduser()
     if not repo.is_dir():

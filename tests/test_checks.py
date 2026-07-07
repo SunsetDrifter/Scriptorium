@@ -397,21 +397,35 @@ class TestEngineExtensionPoints(WikiTest):
         drift = findings(gather(root), "index", "WARNING")
         self.assertEqual([p for _, _, p, _ in drift], ["concepts/INDEX.md"])
 
-    def test_secret_extra_patterns_and_allowlist(self):
+    def test_extra_secret_patterns_fire(self):
         root = make_wiki(self.tmp, files={
             "concepts/token.md": page("concept", "T.", body="pat nbp_abc12345XYZ here\n"),
-            "concepts/template.md": page(
-                "concept", "Tpl.", body="AUTH_SECRET=${server.authSecret}\n"),
         })
         use_variant_with(
             "generic",
             extra_secret_patterns=[(r"\bnbp_[A-Za-z0-9]{8,}", "netbird PAT")],
-            secret_allow_res=[r"\$\{[^}]*\}"],
         )
         hits = findings(gather(root), "secrets", "ERROR")
         self.assertEqual(len(hits), 1)
         self.assertIn("netbird PAT", hits[0][3])
         self.assertTrue(hits[0][2].startswith("concepts/token.md:"))
+
+    def test_secret_allowlist_suppresses_a_real_match(self):
+        # Both lines match the built-in password pattern; the allow regex must
+        # suppress the ${...} placeholder line and leave the plain secret. If
+        # the allowlist did nothing, both would be reported (guards the vacuous
+        # case where the fixture matches no pattern at all).
+        root = make_wiki(self.tmp, files={
+            "concepts/tpl.md": page(
+                "concept", "Tpl.",
+                body="password: ${REDACTED}\npassword: leakedhunter2\n"),
+        })
+        use_variant_with("generic")
+        self.assertEqual(len(findings(gather(root), "secrets", "ERROR")), 2)
+        use_variant_with("generic", secret_allow_res=[r"\$\{[^}]*\}"])
+        hits = findings(gather(root), "secrets", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertTrue(hits[0][2].endswith(":11"), hits[0][2])  # the plain line
 
     def test_iso_date_fields_configurable(self):
         root = make_wiki(self.tmp, files={
@@ -445,6 +459,134 @@ class TestEngineExtensionPoints(WikiTest):
         hits = findings(gather(root), "custom", "INFO")
         self.assertEqual(len(hits), 1)
         self.assertIn("saw 1 pages", hits[0][3])
+
+
+class TestExtensionHardening(WikiTest):
+    """Regression tests for the extension-point defects found in review."""
+
+    def _rebuild(self, root):
+        from wikilint.derived import rebuild_index
+        rebuild_index(root)
+
+    def test_check_log_reports_the_configured_path(self):
+        root = make_wiki(self.tmp, files={})
+        (root / "log.md").unlink()
+        (root / "ops-journal.md").write_text("# Log\n\n## bad header\n")
+        use_variant_with("generic", log_file="ops-journal.md")
+        hits = findings(gather(root), "log", "WARNING")
+        self.assertTrue(hits)
+        self.assertTrue(all(h[2].startswith("ops-journal.md:") for h in hits), hits)
+
+    def test_created_updated_ordering_independent_of_iso_date_fields(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A.",
+                                       created="2026-05-01", updated="2026-04-01"),
+        })
+        use_variant_with("generic", iso_date_fields=["date"])  # excludes the pair
+        msgs = [m for _, _, _, m in findings(gather(root), "frontmatter", "ERROR")]
+        self.assertIn("updated is older than created", msgs)
+
+    def test_index_file_none_disables_index_without_crashing(self):
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", index_file=None)
+        self.assertEqual(findings(gather(root), "index"), [])
+
+    def test_invalid_index_file_raises_config_error(self):
+        from wikilint.settings import ConfigError
+        make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        for bad in ("/abs/index.md", "../escape.md", ""):
+            with self.assertRaises(ConfigError):
+                use_variant_with("generic", index_file=bad)
+
+    def test_rebuild_index_creates_missing_parent_dir(self):
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", index_file="derived/index.md",
+                         index_body_fn=lambda pages: "- x\n")
+        self._rebuild(root)  # must not raise
+        self.assertTrue((root / "derived/index.md").is_file())
+
+    def test_dot_prefixed_index_is_skipped_by_discovery(self):
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", index_file="./concepts/INDEX.md",
+                         index_body_fn=lambda pages: "- x\n")
+        self._rebuild(root)
+        fm = [i for i in findings(gather(root), "frontmatter", "ERROR") if "INDEX" in i[2]]
+        self.assertEqual(fm, [])
+
+    def test_relocated_root_index_not_flagged_by_layout(self):
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", index_file="catalog.md",
+                         index_body_fn=lambda pages: "- x\n")
+        self._rebuild(root)
+        layout = [p for _, _, p, _ in findings(gather(root), "layout", "WARNING")]
+        self.assertNotIn("catalog.md", layout)
+
+    def test_index_body_fn_leading_newline_no_perpetual_drift(self):
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", index_body_fn=lambda pages: "\n| P |\n| a |\n")
+        self._rebuild(root)
+        self.assertEqual(findings(gather(root), "index"), [])
+
+    def test_bad_secret_regex_raises_config_error(self):
+        from wikilint.settings import ConfigError
+        make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        with self.assertRaises(ConfigError):
+            use_variant_with("generic", extra_secret_patterns=[("nbp_[", "bad")])
+        with self.assertRaises(ConfigError):
+            use_variant_with("generic", secret_allow_res=["(unclosed"])
+
+    def test_extra_check_exception_becomes_a_finding(self):
+        def boom(pages, report, root):
+            raise KeyError("missing")
+
+        root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        use_variant_with("generic", extra_checks=[boom])
+        report = gather(root)  # must not crash
+        hits = findings(report, "extra-check", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("KeyError", hits[0][3])
+
+    def test_non_callable_extra_check_raises_config_error(self):
+        from wikilint.settings import ConfigError
+        make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
+        with self.assertRaises(ConfigError):
+            use_variant_with("generic", extra_checks=["not callable"])
+
+    def test_image_wrapped_link_credits_outer_target(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A.", body="[![thumb](t.png)](b-note.md)\n"),
+            "concepts/b-note.md": page("concept", "B."),
+        })
+        use_variant_with("generic", markdown_links=True)
+        report = gather(root)
+        self.assertEqual(findings(report, "md-link"), [])  # outer target resolves
+        orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
+        self.assertNotIn("concepts/b-note.md", orphans)     # got inbound credit
+
+    def test_markdown_link_encoding_scheme_and_absolute_targets(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page(
+                "concept", "A.",
+                body="[enc](../raw/my%20file.md) [tel](tel:+1555) "
+                     "[abs](/nope.md) [ok](b-note.md)\n"),
+            "concepts/b-note.md": page("concept", "B."),
+            "raw/my file.md": "x\n",
+        })
+        use_variant_with("generic", markdown_links=True)
+        report = gather(root)
+        # percent-encoded target resolves, tel:/absolute are out of scope: none broken
+        self.assertEqual(findings(report, "md-link"), [])
+        self.assertNotIn("concepts/b-note.md",
+                         [p for _, _, p, _ in findings(report, "orphan", "WARNING")])
+
+    def test_wikilink_in_inline_code_not_flagged(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page(
+                "concept", "A.",
+                body="Example `[[no-such]]` and ``[[also-none]]`` are code.\n"),
+        })
+        use_variant_with("generic")
+        self.assertEqual(findings(gather(root), "wikilink"), [])
 
 
 if __name__ == "__main__":
