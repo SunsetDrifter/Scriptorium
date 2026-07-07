@@ -57,6 +57,21 @@ class TestConfigSanity(unittest.TestCase):
             self.assertIn(rule["container_field"],
                           config["path_fields"] + config["edge_fields"], variant)
 
+    def test_extension_defaults_present_and_consistent(self):
+        """Every variant's effective config carries the extension keys, and no
+        variant silently overrides one to a different value (which would
+        enable/disable a knob for that variant's users unnoticed)."""
+        from wikilint.settings import DEFAULTS, configure, CONFIG
+        seen = {}
+        for variant in VARIANTS:
+            config, extra = load_variant_config(variant)
+            configure(config, extra)
+            for key in DEFAULTS:
+                self.assertIn(key, CONFIG, f"{variant} missing extension key {key}")
+                seen.setdefault(key, CONFIG[key])
+                self.assertEqual(CONFIG[key], seen[key],
+                                 f"{variant} diverges on extension key {key}")
+
 
 class TestBudgets(unittest.TestCase):
     def test_claude_md_within_declared_cap(self):
