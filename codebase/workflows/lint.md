@@ -1,9 +1,13 @@
+---
+type: workflow
+---
+
 # Lint
 
 Triggered by "lint the wiki". Lint has two halves: the script does everything mechanical; you do only the checks that need judgment.
 
-1. **Run `python3 lint.py check`** and relay its findings to the human, grouped by severity. Do not re-verify by hand what the script already covers: frontmatter validity, broken wikilinks, orphans, dangling references (including `defined_in` and `includes`), architecture membership of active modules, tags, contested age, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, secrets, inbox health, index drift, log format.
-2. **Orphan repair.** For each orphan the script reports, use its unlinked-mention hints to propose wikilink insertions; insert on approval. If no genuine mention exists anywhere, recommend merging or deleting the page (ask). Never force a link where the prose doesn't naturally mention the page.
+1. **Run `python3 lint.py check`** and relay its findings to the human, grouped by severity. Do not re-verify by hand what the script already covers: frontmatter validity, broken links, orphans, dangling references (including `defined_in` and `includes`), architecture membership of active modules, tags, contested age, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, secrets, inbox health, index drift, log format, OKF conformance.
+2. **Orphan repair.** For each orphan the script reports, use its unlinked-mention hints to propose link insertions; insert on approval. If no genuine mention exists anywhere, recommend merging or deleting the page (ask). Never force a link where the prose doesn't naturally mention the page.
 3. **Dead code references.** File paths and line-range citations in prose that point at code that no longer exists, and `source_path` values that have moved. This needs access to the pinned repo; the script cannot see the code.
 4. **Architecture fiction.** Architecture pages whose `includes` or diagrams reference modules that are `status: removed` or clearly gone. The script catches nonexistent pages; you judge status.
 5. **Diagram semantic drift.** Mermaid diagrams whose nodes or edges no longer match what the pages and the code say.
@@ -18,11 +22,13 @@ Report findings as a structured list. Do not auto-fix anything except trivially 
 
 When done: append a lint entry to `log.md` and commit: `lint: <n> findings`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] lint
-- script: 2 errors, 4 warnings
-- judgment: 1 dead code reference, 2 concept gaps
-- see lint report in chat
+## 2026-04-10
+
+- **Lint**: run complete
+- **Script**: 2 errors, 4 warnings
+- **Judgment**: 1 dead code reference, 2 concept gaps
+- **Note**: see lint report in chat
 ```

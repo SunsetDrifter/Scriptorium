@@ -114,7 +114,6 @@ CONFIG = {
     # Index generation. Subsystem mode lists subsystem READMEs first, then
     # only pages with `subsystem: global` in the sections below.
     "index_mode": "subsystems",     # "flat" | "subsystems"
-    "index_link_style": "path",     # "stem" -> [[page-name]], "path" -> [[dir/page-name]]
     "index_sections": [
         ("ADRs", ["adr"]),
         ("Architecture", ["architecture"]),
@@ -128,7 +127,7 @@ CONFIG = {
     "owner_review_max_days": 90,
     # Coverage report (large variant only).
     "coverage": True,
-    # Engine extension points (markdown_links, orphans, index_file,
+    # Engine extension points (okf_conformance, orphans, index_file,
     # index_body_fn, iso_date_fields, extra_secret_patterns, secret_allow_res,
     # log_file, extra_checks) default to original wiki behavior in
     # wikilint/settings.py DEFAULTS. Add a key here only to override one, e.g.

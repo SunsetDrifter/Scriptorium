@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # ADR
 
 Triggered by "draft an ADR for X".
@@ -9,10 +13,12 @@ Triggered by "draft an ADR for X".
 5. **Show the human the draft. Wait for approval.** On approval, set `status: accepted` and link it from affected module and service pages.
 6. **Rebuild the index** (`python3 lint.py rebuild-index`), **append to `log.md`**, then commit: `adr: NNNN <slug>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] adr | 0008 stripe-over-adyen
-- status: accepted
-- linked from: services/payments.md, modules/payments-core.md
+## 2026-04-10
+
+- **ADR**: 0008 stripe-over-adyen
+- **Status**: accepted
+- **Linked**: services/payments.md, modules/payments-core.md
 ```

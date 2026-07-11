@@ -68,7 +68,6 @@ CONFIG = {
     "adr_dirs": [],
     # Index generation.
     "index_mode": "flat",           # "flat" | "subsystems"
-    "index_link_style": "stem",     # "stem" -> [[page-name]], "path" -> [[dir/page-name]]
     "index_sections": [
         ("Sources", ["source"]),
         ("Entities", ["entity"]),
@@ -80,7 +79,7 @@ CONFIG = {
     "owner_review_max_days": None,
     # Coverage report (large variant only).
     "coverage": False,
-    # Engine extension points (markdown_links, orphans, index_file,
+    # Engine extension points (okf_conformance, orphans, index_file,
     # index_body_fn, iso_date_fields, extra_secret_patterns, secret_allow_res,
     # log_file, extra_checks) default to original wiki behavior in
     # wikilint/settings.py DEFAULTS. Add a key here only to override one, e.g.

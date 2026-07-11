@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Verify (sampled)
 
 Triggered by "verify auth", "verify load-bearing", or "verify <page>". Exhaustive verification does not scale; sampling does.
@@ -14,11 +18,13 @@ Triggered by "verify auth", "verify load-bearing", or "verify <page>". Exhaustiv
 5. **On approval,** apply the edits and bump `last_verified_commit` and `last_verified`. Never bump them without having re-read the code at the declared depth.
 6. **Append a verify entry to `log.md`** listing what was checked, what was deferred, and what changed, then commit: `verify: <scope>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] verify | auth load-bearing
-- checked: subsystems/auth/modules/session-store.md (full), subsystems/auth/modules/token-mint.md (spot-check)
-- deferred: 4 normal pages (budget)
-- changes: SessionStore.Refresh signature changed; last_verified_commit bumped to e4f5g6h
+## 2026-04-10
+
+- **Verify**: auth load-bearing
+- **Checked**: subsystems/auth/modules/session-store.md (full), subsystems/auth/modules/token-mint.md (spot-check)
+- **Deferred**: 4 normal pages (budget)
+- **Changes**: SessionStore.Refresh signature changed; last_verified_commit bumped to e4f5g6h
 ```

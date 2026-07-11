@@ -17,8 +17,9 @@ CONFIG = {}
 # these bare as CONFIG[key] is safe because configure() merges DEFAULTS under
 # every variant config.
 DEFAULTS = {
-    # Check that relative [text](target) markdown links resolve on disk.
-    "markdown_links": False,
+    # Enforce OKF v0.1 conformance (check_okf) and stamp okf_version
+    # frontmatter into the rebuilt index. Off for non-OKF markdown trees.
+    "okf_conformance": True,
     # Report pages with no inbound links (plus unlinked-mention hints).
     "orphans": True,
     # Path of the generated index relative to the wiki root; None disables the

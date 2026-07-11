@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Document
 
 Triggered by "document `libs/auth/session/`" or "document the new payments service".
@@ -13,12 +17,14 @@ Triggered by "document `libs/auth/session/`" or "document the new payments servi
 9. **Append to `log.md`**, then commit: `document: <target>`.
 10. **Report back** with every page created or updated and anything you could not verify.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] document | libs/auth/session
-- created: subsystems/auth/modules/session-store.md
-- updated: subsystems/auth/README.md, subsystems/auth/architecture/module-deps.md
-- verification: full at e4f5g6h, criticality load-bearing
-- adr: subsystems/auth/adrs/0004-session-pinning.md
+## 2026-04-10
+
+- **Document**: libs/auth/session
+- **Creation**: subsystems/auth/modules/session-store.md
+- **Update**: subsystems/auth/README.md, subsystems/auth/architecture/module-deps.md
+- **Verification**: full at e4f5g6h, criticality load-bearing
+- **ADR**: subsystems/auth/adrs/0004-session-pinning.md
 ```

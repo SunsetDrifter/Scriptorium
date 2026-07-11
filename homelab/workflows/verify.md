@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Verify
 
 Periodic reality check. Triggered by "verify components" or "verify components/<component>".
@@ -9,11 +13,13 @@ Periodic reality check. Triggered by "verify components" or "verify components/<
 5. **Rebuild the index and lint** if any pages changed: `python3 lint.py rebuild-index`, then `python3 lint.py check` and fix errors. (Bumping `last_verified` changes the index annotations, so this is almost always needed.)
 6. **Append a verify entry to `log.md`** listing what was checked, what changed, what didn't, then commit: `verify: <n> components checked`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] verify | 7 components checked
-- changed: opnsense (firmware 25.1 -> 25.4)
-- unchanged: 6
-- last_verified bumped on all 7
+## 2026-04-10
+
+- **Verify**: 7 components checked
+- **Change**: opnsense (firmware 25.1 -> 25.4)
+- **Unchanged**: 6
+- **Note**: last_verified bumped on all 7
 ```

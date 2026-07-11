@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Postmortem
 
 Triggered by "log postmortem: <thing>".
@@ -9,12 +13,14 @@ Triggered by "log postmortem: <thing>".
 5. **Rebuild and check:** `python3 lint.py rebuild-index`, then `python3 lint.py check`.
 6. **Append to `log.md`**, then commit: `postmortem: <slug>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] postmortem | session-cache-stampede
-- filed as: postmortems/2026-04-10-session-cache-stampede.md
-- subsystems affected: auth, platform
-- readmes updated: subsystems/auth/README.md, subsystems/platform/README.md
-- follow-ups: runbooks/cache-warmup.md, adrs/0009-session-cache-ttl.md (proposed)
+## 2026-04-10
+
+- **Postmortem**: session-cache-stampede
+- **Filed**: postmortems/2026-04-10-session-cache-stampede.md
+- **Subsystems**: auth, platform
+- **Readmes**: subsystems/auth/README.md, subsystems/platform/README.md
+- **Follow-ups**: runbooks/cache-warmup.md, adrs/0009-session-cache-ttl.md (proposed)
 ```

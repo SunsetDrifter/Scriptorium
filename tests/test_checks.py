@@ -75,21 +75,35 @@ class TestBodyExtraction(WikiTest):
 
 
 class TestLinksAndOrphans(WikiTest):
-    def test_broken_wikilink_and_orphan_hint(self):
+    def test_broken_link_and_orphan_hint(self):
         root = make_wiki(self.tmp, files={
-            "concepts/alpha-note.md": page("concept", "A note.", body="See [[missing-page]].\n"),
+            "concepts/alpha-note.md": page(
+                "concept", "A note.", body="See [missing](/concepts/missing-page.md).\n"),
             "queries/orphan-question.md": page("query", "Nobody links here."),
             "synthesis/mentioner.md": page(
                 "synthesis", "Mentions the orphan.",
-                body="The orphan question came up in prose.\nAlso [[alpha-note]].\n",
+                body="The orphan question came up in prose.\n"
+                     "Also [alpha](/concepts/alpha-note.md).\n",
             ),
         })
         report = gather(root)
-        self.assertEqual(len(findings(report, "wikilink", "ERROR")), 1)
+        self.assertEqual(len(findings(report, "link", "ERROR")), 1)
         orphan_infos = [m for _, _, p, m in findings(report, "orphan", "INFO")
                         if p == "queries/orphan-question.md"]
         self.assertTrue(any("mentioned unlinked in synthesis/mentioner.md" in m
                             for m in orphan_infos))
+
+    def test_wikilink_syntax_is_inert(self):
+        # Wikilinks were removed for OKF conformance: [[x]] neither resolves
+        # nor errors, so a page linked only that way is an orphan.
+        root = make_wiki(self.tmp, files={
+            "concepts/alpha-note.md": page("concept", "A note.", body="See [[beta-note]].\n"),
+            "concepts/beta-note.md": page("concept", "B note."),
+        })
+        report = gather(root)
+        self.assertEqual(findings(report, "link"), [])
+        orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
+        self.assertIn("concepts/beta-note.md", orphans)
 
     def test_self_reference_does_not_hide_orphan(self):
         # Review regression: a frontmatter self-reference used to count as inbound.
@@ -172,6 +186,39 @@ class TestSecretsAndLog(WikiTest):
         (root / "log.md").write_text("# Log\n\n## bad header\n")
         report = gather(root)
         self.assertEqual(len(findings(report, "log", "WARNING")), 1)
+
+    def test_legacy_log_header_flagged(self):
+        root = make_wiki(self.tmp)
+        (root / "log.md").write_text("# Log\n\n## [2026-07-01] lint | run\n- ok\n")
+        report = gather(root)
+        msgs = [m for _, _, _, m in findings(report, "log", "WARNING")]
+        self.assertTrue(any("YYYY-MM-DD" in m for m in msgs))
+
+    def test_okf_log_format_passes(self):
+        root = make_wiki(self.tmp)
+        (root / "log.md").write_text(
+            "# Log\n\n## 2026-07-02\n\n- **Update**: concepts/foo.md\n"
+            "- **Creation**: sources/bar.md\n\n## 2026-07-01\n\n- **Lint**: clean\n")
+        report = gather(root)
+        self.assertEqual(findings(report, "log"), [])
+
+    def test_log_entries_and_ordering_checked(self):
+        root = make_wiki(self.tmp)
+        (root / "log.md").write_text(
+            "# Log\n\n## 2026-07-01\n\n- plain bullet without action word\n"
+            "\n## 2026-07-02\n\n- **Update**: fine\n")
+        report = gather(root)
+        msgs = [m for _, _, _, m in findings(report, "log", "WARNING")]
+        self.assertTrue(any("bold action word" in m for m in msgs))
+        self.assertTrue(any("out of order" in m for m in msgs))
+
+    def test_duplicate_date_heading_flagged(self):
+        root = make_wiki(self.tmp)
+        (root / "log.md").write_text(
+            "# Log\n\n## 2026-07-02\n\n- **Update**: a\n"
+            "\n## 2026-07-02\n\n- **Update**: b\n")
+        msgs = [m for _, _, _, m in findings(gather(root), "log", "WARNING")]
+        self.assertTrue(any("duplicate heading" in m for m in msgs))
 
 
 class TestPinningAndDrift(WikiTest):
@@ -307,22 +354,43 @@ class TestCoverage(WikiTest):
 
 
 class TestMarkdownLinks(WikiTest):
-    def test_off_by_default(self):
-        root = make_wiki(self.tmp, files={
-            "concepts/a-note.md": page("concept", "A.", body="See [gone](missing.md).\n"),
-        })
-        report = gather(root)
-        self.assertEqual(findings(report, "md-link"), [])
-
     def test_broken_link_flagged_with_file_accurate_line(self):
         root = make_wiki(self.tmp, files={
             "concepts/a-note.md": page("concept", "A.", body="See [gone](missing.md).\n"),
         })
-        use_variant_with("generic", markdown_links=True)
-        hits = findings(gather(root), "md-link", "ERROR")
+        hits = findings(gather(root), "link", "ERROR")
         self.assertEqual(len(hits), 1)
         # frontmatter is 8 lines + 1 blank: the body's first line is file line 10
         self.assertTrue(hits[0][2].endswith(":10"), hits[0][2])
+
+    def test_bundle_absolute_links_resolve_against_root(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page(
+                "concept", "A.",
+                body="See [b](/concepts/b-note.md) and [gone](/concepts/nope.md).\n"),
+            "concepts/b-note.md": page("concept", "B."),
+        })
+        report = gather(root)
+        hits = findings(report, "link", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("/concepts/nope.md", hits[0][3])
+        orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
+        self.assertNotIn("concepts/b-note.md", orphans)  # inbound credit given
+
+    def test_link_escaping_wiki_root_flagged(self):
+        # Review regression: /../x.md and ../../x.md used to resolve outside
+        # the bundle and pass silently when the target file existed.
+        outside = Path(self.tmp).parent / "escaped-target.md"
+        outside.write_text("outside the bundle\n")
+        self.addCleanup(outside.unlink)
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page(
+                "concept", "A.",
+                body=f"[abs](/../{outside.name}) [rel](../../{outside.name})\n"),
+        })
+        hits = findings(gather(root), "link", "ERROR")
+        self.assertEqual(len(hits), 2)
+        self.assertTrue(all("escapes the wiki root" in h[3] for h in hits), hits)
 
     def test_resolving_targets_pass_and_count_inbound(self):
         root = make_wiki(self.tmp, files={
@@ -334,11 +402,11 @@ class TestMarkdownLinks(WikiTest):
             "concepts/b-note.md": page("concept", "B."),
             "lab-dir/x.txt": "not markdown\n",
         })
-        use_variant_with("generic", markdown_links=True,
+        use_variant_with("generic",
                          non_page_allowed=["lab-dir", "CLAUDE.md", "index.md", "log.md",
                                            "lint.py", "wikilint", "taxonomy.md", "raw", "workflows"])
         report = gather(root)
-        self.assertEqual(findings(report, "md-link"), [])
+        self.assertEqual(findings(report, "link"), [])
         orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
         self.assertNotIn("concepts/b-note.md", orphans)  # md link counted inbound
         self.assertIn("concepts/a-note.md", orphans)
@@ -348,8 +416,7 @@ class TestMarkdownLinks(WikiTest):
             "concepts/a-note.md": page("concept", "A.",
                                        body="Quoted `[x](not-a-real-file.md)` in code.\n"),
         })
-        use_variant_with("generic", markdown_links=True)
-        self.assertEqual(findings(gather(root), "md-link"), [])
+        self.assertEqual(findings(gather(root), "link"), [])
 
 
 class TestEngineExtensionPoints(WikiTest):
@@ -557,9 +624,8 @@ class TestExtensionHardening(WikiTest):
             "concepts/a-note.md": page("concept", "A.", body="[![thumb](t.png)](b-note.md)\n"),
             "concepts/b-note.md": page("concept", "B."),
         })
-        use_variant_with("generic", markdown_links=True)
         report = gather(root)
-        self.assertEqual(findings(report, "md-link"), [])  # outer target resolves
+        self.assertEqual(findings(report, "link"), [])  # outer target resolves
         orphans = [p for _, _, p, _ in findings(report, "orphan", "WARNING")]
         self.assertNotIn("concepts/b-note.md", orphans)     # got inbound credit
 
@@ -572,21 +638,91 @@ class TestExtensionHardening(WikiTest):
             "concepts/b-note.md": page("concept", "B."),
             "raw/my file.md": "x\n",
         })
-        use_variant_with("generic", markdown_links=True)
         report = gather(root)
-        # percent-encoded target resolves, tel:/absolute are out of scope: none broken
-        self.assertEqual(findings(report, "md-link"), [])
+        # percent-encoded target resolves, tel: is out of scope; the
+        # bundle-absolute target now resolves against the root and is broken.
+        hits = findings(report, "link", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("/nope.md", hits[0][3])
         self.assertNotIn("concepts/b-note.md",
                          [p for _, _, p, _ in findings(report, "orphan", "WARNING")])
 
-    def test_wikilink_in_inline_code_not_flagged(self):
+    def test_link_in_multi_backtick_code_span_not_flagged(self):
         root = make_wiki(self.tmp, files={
             "concepts/a-note.md": page(
                 "concept", "A.",
-                body="Example `[[no-such]]` and ``[[also-none]]`` are code.\n"),
+                body="Example `[x](no-such.md)` and ``[y](/also/none.md)`` are code.\n"),
         })
-        use_variant_with("generic")
-        self.assertEqual(findings(gather(root), "wikilink"), [])
+        self.assertEqual(findings(gather(root), "link"), [])
+
+
+class TestOkfConformance(WikiTest):
+    def test_stray_markdown_needs_frontmatter_and_type(self):
+        root = make_wiki(self.tmp, files={
+            "notes.md": "no frontmatter here\n",
+            "glossary.md": "---\ncreated: 2026-07-01\n---\n\nTyped? No.\n",
+            "concepts/a-note.md": page("concept", "A."),
+        })
+        report = gather(root)
+        hits = {p: m for _, _, p, m in findings(report, "okf", "ERROR")}
+        self.assertIn("OKF rule 1", hits["notes.md"])
+        self.assertIn("OKF rule 2", hits["glossary.md"])
+
+    def test_pages_are_not_double_reported(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/no-fm.md": "just prose\n",
+        })
+        report = gather(root)
+        # check_frontmatter owns page files; check_okf must stay silent on them.
+        self.assertEqual(
+            [p for _, _, p, _ in findings(report, "okf", "ERROR")], [])
+        self.assertEqual(len(findings(report, "frontmatter", "ERROR")), 1)
+
+    def test_raw_and_reserved_files_excluded(self):
+        root = make_wiki(self.tmp, files={
+            "raw/inbox/dropped.md": "raw sources never need frontmatter\n",
+        })
+        report = gather(root)
+        self.assertEqual(
+            [p for _, _, p, _ in findings(report, "okf", "ERROR")
+             if p.startswith("raw/") or p == "log.md"], [])
+
+    def test_tooling_frontmatter_passes(self):
+        root = make_wiki(self.tmp, files={
+            "workflows/ingest.md": "---\ntype: workflow\n---\n\n# Ingest\n",
+        })
+        report = gather(root)
+        self.assertEqual(findings(report, "okf", "ERROR"), [])
+
+    def test_index_requires_okf_version(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A."),
+        })
+        (root / "index.md").write_text("# Index\n")
+        msgs = [m for _, _, _, m in findings(gather(root), "okf", "ERROR")]
+        self.assertTrue(any("okf_version" in m for m in msgs))
+        from wikilint.derived import rebuild_index
+        rebuild_index(root)
+        self.assertEqual(findings(gather(root), "okf", "ERROR"), [])
+        text = (root / "index.md").read_text()
+        self.assertTrue(text.startswith('---\nokf_version: "0.1"\n---\n'), text[:60])
+        self.assertIn("* [A Note](/concepts/a-note.md) - A.", text)
+
+    def test_rebuild_index_does_not_accumulate_frontmatter(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/a-note.md": page("concept", "A."),
+        })
+        from wikilint.derived import rebuild_index
+        rebuild_index(root)
+        rebuild_index(root)
+        self.assertEqual((root / "index.md").read_text().count("okf_version"), 1)
+
+    def test_okf_conformance_gate_off(self):
+        root = make_wiki(self.tmp, files={
+            "notes.md": "no frontmatter here\n",
+        })
+        use_variant_with("generic", okf_conformance=False)
+        self.assertEqual(findings(gather(root), "okf"), [])
 
 
 if __name__ == "__main__":

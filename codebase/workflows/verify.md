@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Verify
 
 Triggered by "verify modules" or "verify modules/<page>".
@@ -9,10 +13,12 @@ Triggered by "verify modules" or "verify modules/<page>".
 5. **Rebuild the index if needed.** If any `description`, `status`, or `last_verified_commit` changed, run `python3 lint.py rebuild-index`.
 6. **Append a verify entry to `log.md`**, then commit: `verify: <pages>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] verify | modules/auth
-- changes: SessionStore.Refresh signature changed, removed LegacyToken
-- last_verified_commit bumped to e4f5g6h
+## 2026-04-10
+
+- **Verify**: modules/auth
+- **Changes**: SessionStore.Refresh signature changed, removed LegacyToken
+- **Note**: last_verified_commit bumped to e4f5g6h
 ```

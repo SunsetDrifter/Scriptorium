@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Document
 
 Triggered by "document `src/auth/`" or "document the new payments service".
@@ -11,11 +15,13 @@ Triggered by "document `src/auth/`" or "document the new payments service".
 7. **Append to `log.md`** using the format below, then commit: `document: <thing>`.
 8. **Report back** with every file created or updated and any inconsistencies you couldn't resolve.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] document | payments service
-- created: services/payments.md, modules/payments-core.md, apis/payments-http.md
-- updated: architecture/system.md
-- adr: adrs/0008-stripe-over-adyen.md
+## 2026-04-10
+
+- **Document**: payments service
+- **Creation**: services/payments.md, modules/payments-core.md, apis/payments-http.md
+- **Update**: architecture/system.md
+- **ADR**: adrs/0008-stripe-over-adyen.md
 ```

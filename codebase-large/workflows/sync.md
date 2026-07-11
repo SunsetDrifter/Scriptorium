@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Sync
 
 Triggered by "sync to current". Sync flags; it never rewrites pages.
@@ -9,11 +13,13 @@ Triggered by "sync to current". Sync flags; it never rewrites pages.
 5. **Update `last_synced_commit` and `last_synced_at`** in the `index.md` pinning block (above the generated marker).
 6. **Append a sync entry to `log.md`**, then commit: `sync: <old> -> <new>`.
 
-Log entry format (per-subsystem counts are mandatory):
+Log entry format (per-subsystem counts are mandatory; append under today's `## YYYY-MM-DD` heading if it already exists):
 
 ```
-## [2026-04-10] sync | a1b2c3d -> e4f5g6h
-- changed files: 247
-- subsystems affected: auth (43), billing (12), platform (88)
-- pages flagged for reverify: load-bearing 6, important 14, normal 21
+## 2026-04-10
+
+- **Sync**: a1b2c3d -> e4f5g6h
+- **Changed**: 247
+- **Subsystems**: auth (43), billing (12), platform (88)
+- **Pages**: load-bearing 6, important 14, normal 21
 ```

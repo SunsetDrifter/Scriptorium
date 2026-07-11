@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # ADR
 
 Triggered by "draft an ADR for X".
@@ -11,11 +15,13 @@ Triggered by "draft an ADR for X".
 7. **Rebuild and check:** `python3 lint.py rebuild-index`, then `python3 lint.py check`.
 8. **Append to `log.md`**, then commit: `adr: <number> <slug>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] adr | 0008 stripe over adyen
-- scope: global (affects: billing, platform)
-- status: accepted
-- linked from: subsystems/billing/README.md, subsystems/billing/modules/payments-core.md
+## 2026-04-10
+
+- **ADR**: 0008 stripe over adyen
+- **Scope**: global (affects: billing, platform)
+- **Status**: accepted
+- **Linked**: subsystems/billing/README.md, subsystems/billing/modules/payments-core.md
 ```

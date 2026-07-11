@@ -1,9 +1,13 @@
+---
+type: workflow
+---
+
 # Lint
 
 Triggered by "lint the wiki". Lint has two halves: the script does everything mechanical; you do only the checks that need judgment.
 
-1. **Run `python3 lint.py check`** and relay its findings to the human, grouped by severity. Do not re-verify by hand what the script already checks (frontmatter, wikilinks, orphans, dangling references, topology membership of active components, tags, contested age, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format).
-2. **Orphan repair.** For each orphan the script reports, use its unlinked-mention hints to propose wikilink insertions; insert on approval. If no genuine mention exists anywhere, recommend merging or deleting the page (ask). Never force a link where the prose doesn't naturally mention the page.
+1. **Run `python3 lint.py check`** and relay its findings to the human, grouped by severity. Do not re-verify by hand what the script already checks (frontmatter, links, orphans, dangling references, topology membership of active components, tags, contested age, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format, OKF conformance).
+2. **Orphan repair.** For each orphan the script reports, use its unlinked-mention hints to propose link insertions; insert on approval. If no genuine mention exists anywhere, recommend merging or deleting the page (ask). Never force a link where the prose doesn't naturally mention the page.
 3. **Topology fiction.** The script verifies that `includes` paths exist; you check that no topology page includes a component whose `status` is `retired`, and that diagrams don't depict links or devices that no longer exist.
 4. **Diagram semantic drift.** Mermaid diagrams whose node names no longer match the current component page titles, or that show a component under an old hostname.
 5. **Contested pages.** Any `confidence: contested` page must explain the disagreement in its body; flag ones that don't, and offer to run `workflows/reconcile.md` on pages the script flags as long-contested.
@@ -16,11 +20,13 @@ Report findings as a structured list. Do not auto-fix anything except trivially 
 
 When done: append a lint entry to `log.md` and commit: `lint: <n> findings`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] lint
-- script: 2 errors, 4 warnings
-- judgment: 1 topology fiction, 2 concept gaps
-- see lint report in chat
+## 2026-04-10
+
+- **Lint**: run complete
+- **Script**: 2 errors, 4 warnings
+- **Judgment**: 1 topology fiction, 2 concept gaps
+- **Note**: see lint report in chat
 ```

@@ -1,3 +1,7 @@
+---
+type: tooling
+---
+
 # CLAUDE.md
 
 You are the maintainer of this homelab wiki. The human owns the infrastructure and the decisions. You document, cross-reference, lint, and keep the picture current. This file is the always-loaded core of your operating manual. The step-by-step workflows live in `workflows/` and are read on demand; never run one from memory.
@@ -85,7 +89,7 @@ Rules:
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means sources or the human disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
 - Every tag must appear in `taxonomy.md`; introducing a tag means adding it there, with a one-line meaning, in the same commit.
 - Mark claims you inferred rather than confirmed with `(inferred)` inline; a page containing any carries `confidence: low`.
-- File names are kebab-case: `proxmox-01.md`, `vlan-10-mgmt.md`. Use `[[wikilinks]]` for all internal references.
+- File names are kebab-case: `proxmox-01.md`, `vlan-10-mgmt.md`. Use markdown links with bundle-absolute targets for all internal references: `[proxmox-01](/components/proxmox-01.md)`.
 
 ## Diagrams
 
@@ -108,7 +112,7 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references, topology membership of active components (prime directive 3), tag taxonomy, stale contested pages, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken links, orphans (with unlinked-mention hints), dangling references, topology membership of active components (prime directive 3), tag taxonomy, stale contested pages, inbox health, secrets, `last_verified` staleness, Mermaid presence on topology pages, index drift, log format, OKF conformance. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter. The index is a derived artifact: never hand-edit anything below its generated marker, and rebuild it at the end of any operation that creates, renames, or deletes pages (or bumps a component's `status`/`last_verified`).
 

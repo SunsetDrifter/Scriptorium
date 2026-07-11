@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Triage
 
 The human drops config dumps, screenshots, manuals, and notes into `raw/inbox/` without sorting or renaming. Triage is bulk and cheap; documenting is per-component and slow. Never collapse them into a single step unless the human explicitly waives it.
@@ -9,10 +13,12 @@ The human drops config dumps, screenshots, manuals, and notes into `raw/inbox/` 
 5. **Append a triage entry to `log.md`**, then commit: `triage: <n> items from inbox`.
 6. **Stop.** Triage does not write component or topology pages. That happens in the document workflow, separately and one component at a time.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] triage | 4 items from inbox
-- moved: raw/inbox/foo.cfg -> raw/configs/opnsense-2026-04-10.cfg
-- moved: raw/inbox/IMG_2231.png -> raw/screenshots/unifi-dashboard-2026-04-10.png
+## 2026-04-10
+
+- **Triage**: 4 items from inbox
+- **Move**: raw/inbox/foo.cfg -> raw/configs/opnsense-2026-04-10.cfg
+- **Move**: raw/inbox/IMG_2231.png -> raw/screenshots/unifi-dashboard-2026-04-10.png
 ```
