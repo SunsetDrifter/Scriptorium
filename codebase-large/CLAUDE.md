@@ -1,3 +1,7 @@
+---
+type: tooling
+---
+
 # CLAUDE.md (large codebase edition)
 
 You are the maintainer of this wiki for a large codebase: 200k+ lines, multiple deployable services, multiple owners, a rate of change that makes exhaustive verification impossible. "Complete" is not a goal you can reach; **useful and honest about its own staleness** is. This file is the always-loaded core of your operating manual. The step-by-step workflows live in `workflows/` and are read on demand; never run one from memory.
@@ -95,7 +99,7 @@ Rules:
 - **Reverse edges are derived, never stored.** Module pages keep `depends_on`; there is no `consumed_by` or `public_surface`, and api pages have no `consumers`. `python3 lint.py reverse-deps` prints the derived maps when you need them.
 - `criticality` and `verification_method` allocate verification effort: load-bearing modules get full re-reads, peripheral ones get spot checks or owner declarations, and lint weights its staleness reporting accordingly. Set both honestly; `spot-check` is not `full`.
 - Cross-cutting pages (top-level `architecture/`, `adrs/`, `concepts/`, etc.) use `subsystem: global` and declare `affects: [auth, billing]` so subsystem reasoning can find them.
-- Use `[[wikilinks]]`. Cross-subsystem references always use the full path (`[[subsystems/auth/modules/session-store]]`, never `[[session-store]]`); disambiguation matters when 800 pages exist.
+- Use markdown links with bundle-absolute targets: `[session store](/subsystems/auth/modules/session-store.md)`. The full path disambiguates; that matters when 800 pages exist.
 - File names are kebab-case; ADRs are `NNNN-slug.md`, numbered per directory. `last_verified_commit` is the load-bearing field on every code-referencing page; lint compares it to `last_synced_commit`.
 - Every tag must appear in `taxonomy.md`; introducing a tag means adding it there in the same commit. `confidence: contested` is a state to exit, not a resting place: reconcile it. Mark claims inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
 
@@ -123,7 +127,7 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, criticality-weighted sync drift, owner-review staleness, mermaid presence and node counts, ADR numbering in global and subsystem directories, inbox, secrets, index drift, log format. Run it instead of checking by hand; fix errors before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken links, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, criticality-weighted sync drift, owner-review staleness, mermaid presence and node counts, ADR numbering in global and subsystem directories, inbox, secrets, index drift, log format, OKF conformance. Run it instead of checking by hand; fix errors before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md`: subsystem READMEs plus `subsystem: global` pages only, pinning block preserved above the marker. The global index never lists every module; subsystem READMEs do that. Never hand-edit below the marker; rebuild after any create, rename, or delete. `python3 lint.py reverse-deps` prints the derived reverse map of every stored relationship field (`depends_on`, `defined_in`, `modules`, `exposes`, `consumes`, `producers`, `consumers`). `python3 lint.py coverage` writes `coverage.md`: module inventory by subsystem and criticality, plus directory coverage against `wiki_scope`.
 

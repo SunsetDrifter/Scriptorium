@@ -6,10 +6,10 @@ from datetime import date, datetime
 from urllib.parse import unquote
 
 from .model import (
-    ADR_FILE_RE, FILENAME_EXEMPT, KEBAB_RE, LOG_HEADER_RE, MD_LINK_RE,
-    SECRET_PATTERNS, WIKILINK_RE, blank_frontmatter, blank_images,
-    blank_inline_code, build_link_index, line_at, parse_index_pinning,
-    parse_iso_date, resolve_link,
+    ADR_FILE_RE, FILENAME_EXEMPT, KEBAB_RE, LOG_DATE_HEADER_RE, LOG_ENTRY_RE,
+    MD_LINK_RE, OKF_VERSION, SECRET_PATTERNS, blank_frontmatter, blank_images,
+    blank_inline_code, build_link_index, discover_okf_bundle, line_at,
+    parse_frontmatter, parse_index_pinning, parse_iso_date, resolve_link,
 )
 from .settings import CONFIG
 
@@ -84,24 +84,37 @@ def _file_identity(path):
     return (st.st_dev, st.st_ino)
 
 
-def check_markdown_links(p, pages_by_identity, report):
-    """Every relative [text](target) link must resolve on the filesystem
-    (file or directory). Returns the resolved page targets for inbound
-    counting. External (scheme/protocol-relative), absolute, and pure-anchor
-    targets are out of scope and skipped."""
+def check_markdown_links(p, pages_by_identity, report, root):
+    """Every [text](target) link must resolve on the filesystem (file or
+    directory): bundle-absolute targets (leading /, OKF's recommended form)
+    resolve against the wiki root, relative targets against the linking
+    page's directory. Returns the resolved page targets for inbound counting.
+    External (scheme/protocol-relative) and pure-anchor targets are skipped."""
     resolved_pages = []
+    # resolve() both sides so symlinked roots (e.g. /var -> /private/var)
+    # compare equal when checking bundle containment.
+    root_resolved = root.resolve()
     # Body content only, images and code blanked, line numbers file-accurate.
     scan = blank_images(blank_frontmatter(p.prose))
     for m in MD_LINK_RE.finditer(scan):
         raw = m.group(1)
         target = raw.split("#")[0]
-        if not target or URI_SCHEME_RE.match(target) or target.startswith("/"):
+        if not target or URI_SCHEME_RE.match(target):
             continue
-        path = (p.path.parent / unquote(target)).resolve()
+        if target.startswith("/"):
+            path = (root / unquote(target).lstrip("/")).resolve()
+        else:
+            path = (p.path.parent / unquote(target)).resolve()
         if not path.exists():
             report.error(
-                "md-link", f"{p.rel}:{line_at(scan, m.start())}",
-                f"broken relative link ({raw})",
+                "link", f"{p.rel}:{line_at(scan, m.start())}",
+                f"broken link ({raw})",
+            )
+            continue
+        if path != root_resolved and root_resolved not in path.parents:
+            report.error(
+                "link", f"{p.rel}:{line_at(scan, m.start())}",
+                f"link escapes the wiki root ({raw})",
             )
             continue
         target_page = pages_by_identity.get(_file_identity(path))
@@ -110,27 +123,18 @@ def check_markdown_links(p, pages_by_identity, report):
     return resolved_pages
 
 
-def check_links_and_orphans(pages, report):
+def check_links_and_orphans(pages, report, root):
     by_stem, by_rel = build_link_index(pages)
-    md_links = CONFIG["markdown_links"]
     pages_by_identity = {}
-    if md_links:
-        for p in pages:
-            identity = _file_identity(p.path)
-            if identity is not None:
-                pages_by_identity[identity] = p
+    for p in pages:
+        identity = _file_identity(p.path)
+        if identity is not None:
+            pages_by_identity[identity] = p
     inbound = {p.rel: 0 for p in pages}
     for p in pages:
-        for m in WIKILINK_RE.finditer(p.body_prose):
-            target = resolve_link(m.group(1), by_stem, by_rel)
-            if target is None:
-                report.error("wikilink", p.rel, f"broken link [[{m.group(1)}]]")
-            elif target.rel != p.rel:
+        for target in check_markdown_links(p, pages_by_identity, report, root):
+            if target.rel != p.rel:
                 inbound[target.rel] += 1
-        if md_links:
-            for target in check_markdown_links(p, pages_by_identity, report):
-                if target.rel != p.rel:
-                    inbound[target.rel] += 1
         for field in CONFIG["path_fields"] + CONFIG["edge_fields"]:
             for value in p.field_list(field):
                 target = resolve_link(value, by_stem, by_rel)
@@ -154,7 +158,7 @@ def check_links_and_orphans(pages, report):
 
 def report_unlinked_mentions(orphan, pages, report):
     """Hint generation for the cross-linker: places where an orphan's name
-    appears in prose without a wikilink."""
+    appears in prose without a link."""
     patterns = [
         re.compile(re.escape(orphan.stem.replace("-", " ")), re.IGNORECASE),
         re.compile(re.escape(orphan.stem), re.IGNORECASE),
@@ -168,7 +172,7 @@ def report_unlinked_mentions(orphan, pages, report):
                 report.info(
                     "orphan", orphan.rel,
                     f"mentioned unlinked in {other.rel}:{line_at(other.prose, m.start())}; "
-                    "candidate wikilink",
+                    "candidate link",
                 )
                 break
 
@@ -454,6 +458,9 @@ def check_adr_dir(dir_path, pages, report, root):
 
 
 def check_log(root, report):
+    """OKF log structure: '## YYYY-MM-DD' date headings, newest first, with
+    entries as '- **Action**: ...' bullets. This check owns log.md end to
+    end; check_okf deliberately does not re-validate it."""
     log_file = CONFIG["log_file"]
     if log_file is None:
         return
@@ -462,9 +469,64 @@ def check_log(root, report):
         report.warning("log", log_file, "missing")
         return
     text = log.read_text(encoding="utf-8", errors="replace")
+    prev = None  # (date, line_no) of the last valid heading seen
     for i, line in enumerate(text.splitlines(), 1):
-        if line.startswith("## ") and not LOG_HEADER_RE.match(line):
+        if line.startswith("## "):
+            m = LOG_DATE_HEADER_RE.match(line)
+            if not m:
+                report.warning(
+                    "log", f"{log_file}:{i}",
+                    f"heading not in '## YYYY-MM-DD' form: {line!r}",
+                )
+                continue
+            d = parse_iso_date(m.group(1))
+            if d is None:
+                report.warning("log", f"{log_file}:{i}", f"heading is not a valid date: {line!r}")
+                continue
+            if prev is not None and d > prev[0]:
+                report.warning(
+                    "log", f"{log_file}:{i}",
+                    f"headings out of order (want newest-first): {d} follows {prev[0]}",
+                )
+            elif prev is not None and d == prev[0]:
+                report.warning(
+                    "log", f"{log_file}:{i}",
+                    f"duplicate heading for {d}; append entries under the existing one",
+                )
+            prev = (d, i)
+        elif line.startswith("- ") and not LOG_ENTRY_RE.match(line):
             report.warning(
                 "log", f"{log_file}:{i}",
-                f"header not in '## [date] op | desc' form: {line!r}",
+                "entry should open with a bold action word: '- **Update**: ...'",
+            )
+
+
+def check_okf(pages, report, root):
+    """OKF v0.1 conformance: (1) every non-reserved .md parses as frontmatter,
+    (2) with a non-empty type, (3) reserved files follow their structure.
+    Pages are skipped here: check_frontmatter is strictly stricter. log.md's
+    structure is owned by check_log, not re-validated here. raw/ is excluded
+    by design (immutable human-owned sources; see discover_okf_bundle)."""
+    if not CONFIG["okf_conformance"]:
+        return
+    page_rels = {p.rel for p in pages}
+    for path in discover_okf_bundle(root):
+        rel = path.relative_to(root).as_posix()
+        if rel in page_rels:
+            continue
+        fields, err = parse_frontmatter(
+            path.read_text(encoding="utf-8", errors="replace"))
+        if err:
+            report.error("okf", rel, f"OKF rule 1: {err}")
+        elif missing_value(fields.get("type")):
+            report.error("okf", rel, "OKF rule 2: missing or empty type")
+    index_file = CONFIG["index_file"]
+    if index_file and (root / index_file).is_file():
+        fields, _ = parse_frontmatter(
+            (root / index_file).read_text(encoding="utf-8", errors="replace"))
+        if not fields or fields.get("okf_version") != OKF_VERSION:
+            report.error(
+                "okf", index_file,
+                f'OKF rule 3: missing okf_version: "{OKF_VERSION}" frontmatter; '
+                "run `python3 lint.py rebuild-index`",
             )

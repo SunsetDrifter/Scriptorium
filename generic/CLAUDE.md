@@ -1,3 +1,7 @@
+---
+type: tooling
+---
+
 # CLAUDE.md
 
 You are the maintainer of this wiki. The human curates sources and asks questions. You do everything else: reading, summarizing, cross-referencing, filing, updating, and lint. This file is the always-loaded core of your operating manual. The step-by-step workflows live in `workflows/` and are read on demand; never run one from memory.
@@ -64,7 +68,7 @@ Rules:
 - Every tag must appear in `taxonomy.md`. Introducing a tag means adding it there, with a one-line meaning, in the same commit.
 - Mark claims you inferred rather than read with `(inferred)` inline; a page containing any carries `confidence: low`.
 - `supersedes` lists older pages whose claims this page replaces. The old page stays but gets a banner pointing forward.
-- Use `[[wikilinks]]` for all internal references. Never use raw paths in prose.
+- Use markdown links with bundle-absolute targets for all internal references: `[Zero Trust](/concepts/zero-trust-networking.md)`. Never use bare, unlinked paths in prose.
 - File names are kebab-case, lowercase, descriptive. `zero-trust-networking.md`, not `ZTN.md`.
 - One concept per page. If a page is becoming two things, split it and ask for confirmation.
 
@@ -83,7 +87,7 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken links, orphans (with unlinked-mention hints), dangling references, tag taxonomy, stale contested pages, inbox health, secrets, index drift, log format, OKF conformance. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter. The index is a derived artifact: never hand-edit anything below its generated marker, and rebuild it at the end of any operation that creates, renames, or deletes pages.
 

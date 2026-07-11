@@ -53,10 +53,10 @@ def make_wiki(tmp, variant="generic", files=None, taxonomy="- alpha — test tag
     for d in config["page_dirs"]:
         (root / d).mkdir(parents=True, exist_ok=True)
     (root / config["inbox_dir"]).mkdir(parents=True, exist_ok=True)
-    (root / "CLAUDE.md").write_text("# CLAUDE.md test stub\n")
+    (root / "CLAUDE.md").write_text("---\ntype: tooling\n---\n\n# CLAUDE.md test stub\n")
     (root / "workflows").mkdir(exist_ok=True)
-    (root / "taxonomy.md").write_text("# Tag taxonomy\n\n" + taxonomy)
-    (root / "log.md").write_text("# Log\n\n## [2026-07-01] lint\n- ok\n")
+    (root / "taxonomy.md").write_text("---\ntype: tooling\n---\n\n# Tag taxonomy\n\n" + taxonomy)
+    (root / "log.md").write_text("# Log\n\n## 2026-07-01\n\n- **Lint**: ok\n")
     for rel, content in (files or {}).items():
         target = root / rel
         target.parent.mkdir(parents=True, exist_ok=True)

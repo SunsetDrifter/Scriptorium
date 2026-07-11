@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Ingest
 
 Triggered by "ingest `raw/articles/foo.md`" or similar. Default to one source at a time with the human in the loop; batch only on explicit request.
@@ -12,12 +16,14 @@ Triggered by "ingest `raw/articles/foo.md`" or similar. Default to one source at
 8. **Append to `log.md`** using the format below, then commit: `ingest: <source title>`.
 9. **Report back.** Tell the human exactly which pages were created, which were updated, and which contradictions surfaced. Be specific.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] ingest | Article Title Here
-- source: sources/article-title.md
-- created: entities/foo.md, concepts/bar.md
-- updated: entities/baz.md, synthesis/qux.md
-- contradictions: noted in concepts/bar.md (sources/article-title.md vs sources/old-paper.md)
+## 2026-04-10
+
+- **Ingest**: Article Title Here
+- **Source**: sources/article-title.md
+- **Creation**: entities/foo.md, concepts/bar.md
+- **Update**: entities/baz.md, synthesis/qux.md
+- **Contested**: noted in concepts/bar.md (sources/article-title.md vs sources/old-paper.md)
 ```

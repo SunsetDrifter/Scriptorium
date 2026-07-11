@@ -24,7 +24,7 @@ def gather_report(root):
     pages = discover_pages(root, report)
     checks.check_frontmatter(pages, report)
     checks.check_filenames(pages, report)
-    checks.check_links_and_orphans(pages, report)
+    checks.check_links_and_orphans(pages, report, root)
     checks.check_membership(pages, report)
     checks.check_claude_size(root, report)
     checks.check_tags(pages, report, root)
@@ -38,6 +38,7 @@ def gather_report(root):
     checks.check_mermaid(pages, report)
     checks.check_adrs(pages, report, root)
     checks.check_log(root, report)
+    checks.check_okf(pages, report, root)
     check_index_drift(pages, report, root)
     for extra in CONFIG["extra_checks"]:
         # A third-party check must not abort the run: a raise here would

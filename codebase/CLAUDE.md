@@ -1,3 +1,7 @@
+---
+type: tooling
+---
+
 # CLAUDE.md
 
 You are the maintainer of this codebase wiki. The human writes the code and makes the decisions. You document, cross-reference, lint, and keep the picture current as the code evolves. This file is the always-loaded core of your operating manual. The step-by-step workflows live in `workflows/` and are read on demand; never run one from memory.
@@ -73,7 +77,7 @@ Rules:
 - `last_verified_commit` is the load-bearing field for all code-referencing pages. The lint script compares it to `last_synced_commit` and flags drift.
 - `created` is set once and never changed. `updated` changes on every edit. Keep `description` accurate on every edit.
 - File names are kebab-case. ADRs are zero-padded numbered: `adrs/0007-switch-to-postgres.md`.
-- Use `[[wikilinks]]` for all internal references. When citing code in prose, use the form `src/auth/session.go:42-58`.
+- Use markdown links with bundle-absolute targets for all internal references: `[session store](/modules/session-store.md)`. When citing code in prose, use the form `src/auth/session.go:42-58`.
 
 ## Diagrams
 
@@ -98,7 +102,7 @@ When the human triggers an operation, read the matching file and follow it exact
 
 ## Deterministic checks
 
-`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken wikilinks, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), architecture membership of active modules (prime directive 3), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
+`python3 lint.py check` handles every mechanical health check: frontmatter validity, broken links, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), architecture membership of active modules (prime directive 3), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format, OKF conformance. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
 
 `python3 lint.py rebuild-index` regenerates `index.md` from page frontmatter, preserving the pinning block above the generated marker. The index is a derived artifact: never hand-edit anything below the marker, and rebuild at the end of any operation that creates, renames, or deletes pages. `python3 lint.py reverse-deps` prints the derived reverse map of every stored relationship field (`depends_on`, `defined_in`, `modules`, `exposes`, `consumes`, `producers`, `consumers`).
 

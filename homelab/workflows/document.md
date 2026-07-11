@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Document
 
 Triggered by "document the new VM", "document this OPNsense config", or similar. Default to one component at a time with the human in the loop.
@@ -11,11 +15,13 @@ Triggered by "document the new VM", "document this OPNsense config", or similar.
 7. **Append to `log.md`** using the format below, then commit: `document: <component>`.
 8. **Report back.** List every file created or updated. Call out any cross-reference inconsistencies you couldn't resolve.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] document | grafana VM
-- created: components/grafana.md
-- updated: topology/services.md (diagram + includes)
-- decision: sources/decisions/2026-04-10-grafana-on-proxmox-01.md
+## 2026-04-10
+
+- **Document**: grafana VM
+- **Creation**: components/grafana.md
+- **Update**: topology/services.md (diagram + includes)
+- **Decision**: sources/decisions/2026-04-10-grafana-on-proxmox-01.md
 ```

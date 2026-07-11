@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Owner review
 
 Triggered by "owner review for auth". Code-level verification catches signature drift; owner review catches "we deprecated this whole module last sprint and nobody told the wiki". This is how large wikis stay honest.
@@ -9,11 +13,13 @@ Triggered by "owner review for auth". Code-level verification catches signature 
 5. **Run `python3 lint.py check`** and fix any errors.
 6. **Append an owner-review entry to `log.md`**, then commit: `owner-review: <subsystem>`.
 
-Log entry format:
+Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
 ```
-## [2026-04-10] owner-review | auth
-- reviewed with: @jack
-- pages confirmed: 6, pages updated: 2
-- follow-ups: document libs/auth/webauthn (new, undocumented)
+## 2026-04-10
+
+- **Owner-review**: auth
+- **Reviewed**: @jack
+- **Pages**: 6 confirmed, 2 updated
+- **Follow-ups**: document libs/auth/webauthn (new, undocumented)
 ```

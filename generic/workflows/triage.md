@@ -1,3 +1,7 @@
+---
+type: workflow
+---
+
 # Triage
 
 The human drops new sources into `raw/inbox/` without sorting or renaming. Triage is bulk and cheap; ingest is per-source and slow. Never collapse them into a single step unless the human explicitly waives the per-source discussion.
