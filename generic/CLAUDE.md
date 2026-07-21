@@ -24,7 +24,7 @@ wiki/
 ├── workflows/         # step-by-step procedures, read on demand
 ├── lint.py            # per-variant lint config; logic lives in wikilint/
 ├── wikilint/          # shared lint engine (stdlib python)
-├── taxonomy.md        # the allowed tags, lint-enforced
+├── taxonomy.md        # allowed tags + page-type glossary, lint-enforced
 ├── .githooks/         # pre-commit gate running lint.py
 ├── index.md           # content catalog, generated from frontmatter
 ├── log.md             # chronological history, append-only
@@ -65,7 +65,7 @@ Rules:
 - `description` is one sentence. It is how you and the index find this page without opening it. Keep it accurate on every edit.
 - `sources` lists every source page that supports claims on this page.
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means two or more sources disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
-- Every tag must appear in `taxonomy.md`. Introducing a tag means adding it there, with a one-line meaning, in the same commit.
+- Every tag must appear in `taxonomy.md`. Introducing a tag means adding it there, with a one-line meaning, in the same commit. The allowed page types are described there too, under '## Page types'.
 - Mark claims you inferred rather than read with `(inferred)` inline; a page containing any carries `confidence: low`.
 - `supersedes` lists older pages whose claims this page replaces. The old page stays but gets a banner pointing forward.
 - Use markdown links with bundle-absolute targets for all internal references: `[Zero Trust](/concepts/zero-trust-networking.md)`. Never use bare, unlinked paths in prose.

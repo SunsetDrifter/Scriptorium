@@ -25,7 +25,7 @@ wiki/
 ├── workflows/           # step-by-step procedures, read on demand
 ├── lint.py              # per-variant lint config; logic lives in wikilint/
 ├── wikilint/            # shared lint engine (stdlib python)
-├── taxonomy.md          # the allowed tags, lint-enforced
+├── taxonomy.md          # allowed tags + page-type glossary, lint-enforced
 ├── .githooks/           # pre-commit gate running lint.py
 ├── index.md             # content catalog, generated from frontmatter
 ├── log.md               # chronological history, append-only
@@ -87,7 +87,7 @@ Rules:
 - `last_verified` on components is the most important field in the schema. Older than 60 days gets flagged by lint.
 - `depends_on` is the only stored dependency edge. Reverse edges (what consumes a component) are derived, never stored: `python3 lint.py reverse-deps` prints the map.
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means sources or the human disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
-- Every tag must appear in `taxonomy.md`; introducing a tag means adding it there, with a one-line meaning, in the same commit.
+- Every tag must appear in `taxonomy.md`; introducing a tag means adding it there, with a one-line meaning, in the same commit. The allowed page types are described there too, under '## Page types'.
 - Mark claims you inferred rather than confirmed with `(inferred)` inline; a page containing any carries `confidence: low`.
 - File names are kebab-case: `proxmox-01.md`, `vlan-10-mgmt.md`. Use markdown links with bundle-absolute targets for all internal references: `[proxmox-01](/components/proxmox-01.md)`.
 

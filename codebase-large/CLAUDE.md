@@ -43,7 +43,7 @@ wiki/
 ├── workflows/             # step-by-step procedures, read on demand
 ├── lint.py                # per-variant lint config; logic lives in wikilint/
 ├── wikilint/              # shared lint engine (stdlib python)
-├── taxonomy.md            # the allowed tags, lint-enforced
+├── taxonomy.md            # allowed tags + page-type glossary, lint-enforced
 ├── .githooks/             # pre-commit gate running lint.py
 ├── index.md               # repo pinning + generated catalog
 ├── log.md                 # append-only history
@@ -101,7 +101,7 @@ Rules:
 - Cross-cutting pages (top-level `architecture/`, `adrs/`, `concepts/`, etc.) use `subsystem: global` and declare `affects: [auth, billing]` so subsystem reasoning can find them.
 - Use markdown links with bundle-absolute targets: `[session store](/subsystems/auth/modules/session-store.md)`. The full path disambiguates; that matters when 800 pages exist.
 - File names are kebab-case; ADRs are `NNNN-slug.md`, numbered per directory. `last_verified_commit` is the load-bearing field on every code-referencing page; lint compares it to `last_synced_commit`.
-- Every tag must appear in `taxonomy.md`; introducing a tag means adding it there in the same commit. `confidence: contested` is a state to exit, not a resting place: reconcile it. Mark claims inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
+- Every tag must appear in `taxonomy.md`; introducing a tag means adding it there in the same commit. The allowed page types are described there too, under '## Page types'. `confidence: contested` is a state to exit, not a resting place: reconcile it. Mark claims inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
 
 ## Diagrams
 

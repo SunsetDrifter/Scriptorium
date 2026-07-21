@@ -34,7 +34,7 @@ Therefore the v0.2 ask should be a **place, not a vocabulary**: a reserved, conv
 
 ## Possible Scriptorium moves (recorded, not committed to)
 
-1. Prototype the glossary convention locally: extend `taxonomy.md` (or add a sibling section) to cover page types with one-line meanings, lint-enforced. Zero spec dependency; becomes running code to cite upstream.
+1. Prototype the glossary convention locally: extend `taxonomy.md` to cover page types with one-line meanings, lint-enforced. **Done 2026-07-22**: every variant's `taxonomy.md` now carries a `## Page types` section, and `check_types` (`wikilint/checks.py`) warns on schema/glossary drift, missing meanings, and unknown types; gated by the `types_glossary` knob (default on).
 2. Open an upstream discussion issue proposing the self-description convention, citing this note's facts (§1–4) and the local prototype if built.
 3. Do nothing until v0.2 signals a direction; keep §Predictions as the scorecard.
 

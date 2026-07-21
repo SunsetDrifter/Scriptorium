@@ -220,15 +220,32 @@ def check_claude_size(root, report):
 
 
 def load_taxonomy(root):
+    """Parse the taxonomy file into (tags, types). Tag entries are `- slug`
+    lines anywhere outside a `## Page types` section; entries inside that
+    section map type slug -> one-line meaning (empty string when the line has
+    no meaning after the dash). `types` is None when the section is absent."""
     path = root / CONFIG["taxonomy_file"]
     if not path.is_file():
         return None
     tags = set()
+    types = None
+    in_types = False
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        m = re.match(r"^- ([a-z0-9][a-z0-9-]*)", line)
+        if re.match(r"^##\s+Page types\s*$", line):
+            in_types = True
+            if types is None:
+                types = {}
+            continue
+        if re.match(r"^#{1,6}\s", line):
+            in_types = False
+            continue
+        m = re.match(r"^- ([a-z0-9][a-z0-9-]*)(?:\s*—\s*(.*))?", line)
         if m:
-            tags.add(m.group(1))
-    return tags
+            if in_types:
+                types[m.group(1)] = (m.group(2) or "").strip()
+            else:
+                tags.add(m.group(1))
+    return tags, types
 
 
 def check_tags(pages, report, root):
@@ -241,6 +258,7 @@ def check_tags(pages, report, root):
             "missing; create it and list the allowed tags",
         )
         return
+    taxonomy, _types = taxonomy
     used = set()
     for p in pages:
         for tag in p.field_list("tags"):
@@ -253,6 +271,46 @@ def check_tags(pages, report, root):
                 )
     for unused in sorted(taxonomy - used):
         report.info("tags", CONFIG["taxonomy_file"], f"tag {unused!r} is used by no page")
+
+
+def check_types(pages, report, root):
+    """The type glossary: taxonomy.md's `## Page types` section must describe
+    every schema type with a one-line meaning, so the bundle self-describes
+    its type vocabulary to foreign OKF consumers (docs/research
+    2026-07-22 position note)."""
+    if CONFIG["taxonomy_file"] is None or not CONFIG["types_glossary"]:
+        return
+    taxonomy = load_taxonomy(root)
+    if taxonomy is None:
+        return  # check_tags already reports the missing file
+    _tags, types = taxonomy
+    tfile = CONFIG["taxonomy_file"]
+    if types is None:
+        report.warning(
+            "types", tfile,
+            "no '## Page types' section; describe each page type there "
+            "with a one-line meaning",
+        )
+        return
+    schema_types = set(CONFIG["type_required"])
+    for t in sorted(schema_types - set(types)):
+        report.warning(
+            "types", tfile,
+            f"page type {t!r} is not described; add '- {t} — <meaning>' "
+            "under '## Page types'",
+        )
+    for t in sorted(schema_types & set(types)):
+        if not types[t]:
+            report.warning(
+                "types", tfile,
+                f"page type {t!r} has no meaning; add one after the dash",
+            )
+    for t in sorted(set(types) - schema_types):
+        report.warning(
+            "types", tfile,
+            f"'## Page types' describes unknown type {t!r}; remove it or "
+            "add it to the schema",
+        )
 
 
 def check_contested_age(pages, report):

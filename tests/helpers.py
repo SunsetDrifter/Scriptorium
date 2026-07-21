@@ -55,7 +55,12 @@ def make_wiki(tmp, variant="generic", files=None, taxonomy="- alpha — test tag
     (root / config["inbox_dir"]).mkdir(parents=True, exist_ok=True)
     (root / "CLAUDE.md").write_text("---\ntype: tooling\n---\n\n# CLAUDE.md test stub\n")
     (root / "workflows").mkdir(exist_ok=True)
-    (root / "taxonomy.md").write_text("---\ntype: tooling\n---\n\n# Tag taxonomy\n\n" + taxonomy)
+    types_section = "\n## Page types\n\n" + "".join(
+        f"- {t} — test meaning\n" for t in config["type_required"]
+    )
+    (root / "taxonomy.md").write_text(
+        "---\ntype: tooling\n---\n\n# Taxonomy\n\n" + taxonomy + types_section
+    )
     (root / "log.md").write_text("# Log\n\n## 2026-07-01\n\n- **Lint**: ok\n")
     for rel, content in (files or {}).items():
         target = root / rel

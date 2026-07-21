@@ -40,7 +40,7 @@ wiki/
 ├── workflows/         # step-by-step procedures, read on demand
 ├── lint.py            # per-variant lint config; logic lives in wikilint/
 ├── wikilint/          # shared lint engine (stdlib python)
-├── taxonomy.md        # the allowed tags, lint-enforced
+├── taxonomy.md        # allowed tags + page-type glossary, lint-enforced
 ├── .githooks/         # pre-commit gate running lint.py
 ├── index.md           # repo pinning block + generated content catalog
 ├── log.md             # chronological history, append-only
@@ -60,7 +60,7 @@ wiki/
 
 ## Page types and frontmatter
 
-Every page starts with YAML frontmatter. All pages require `type`, `created`, `updated`, `description` (one accurate sentence; it is how pages are found without being opened), and `tags` (each tag must appear in `taxonomy.md`; introducing one means adding it there in the same commit). Optional on any page: `sources` (wiki paths backing the page) and `confidence: low | contested` (absent means normal; a `contested` page must explain the disagreement in its body, and contested is a state to exit, not a resting place: reconcile it). Mark claims you inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
+Every page starts with YAML frontmatter. All pages require `type`, `created`, `updated`, `description` (one accurate sentence; it is how pages are found without being opened), and `tags` (each tag must appear in `taxonomy.md`, which also describes the allowed page types; introducing a tag means adding it there in the same commit). Optional on any page: `sources` (wiki paths backing the page) and `confidence: low | contested` (absent means normal; a `contested` page must explain the disagreement in its body, and contested is a state to exit, not a resting place: reconcile it). Mark claims you inferred rather than verified against the code with `(inferred)` inline; a page containing any carries `confidence: low`.
 
 Extra required fields by type:
 

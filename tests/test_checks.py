@@ -656,6 +656,65 @@ class TestExtensionHardening(WikiTest):
         self.assertEqual(findings(gather(root), "link"), [])
 
 
+class TestTypesGlossary(WikiTest):
+    def test_default_fixture_passes(self):
+        root = make_wiki(self.tmp, files={
+            "concepts/alpha-note.md": page("concept", "A note."),
+        })
+        report = gather(root)
+        self.assertEqual(findings(report, "types"), [])
+
+    def test_missing_section_warns_once(self):
+        root = make_wiki(self.tmp)
+        (root / "taxonomy.md").write_text(
+            "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
+        )
+        report = gather(root)
+        hits = findings(report, "types", "WARNING")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("no '## Page types' section", hits[0][3])
+
+    def test_undescribed_and_unknown_and_empty_meaning(self):
+        root = make_wiki(self.tmp)
+        # generic schema types: source, entity, concept, synthesis, query.
+        # Describe all but 'query', add a meaningless entry and an unknown one.
+        (root / "taxonomy.md").write_text(
+            "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
+            "\n## Page types\n\n"
+            "- source — a summary of one raw source\n"
+            "- entity — a person, company, product, or tool\n"
+            "- concept —\n"
+            "- synthesis — a cross-cutting analysis\n"
+            "- widget — not a real type\n"
+        )
+        report = gather(root)
+        messages = [f[3] for f in findings(report, "types", "WARNING")]
+        self.assertEqual(len(messages), 3)
+        self.assertTrue(any("'query' is not described" in m for m in messages))
+        self.assertTrue(any("'concept' has no meaning" in m for m in messages))
+        self.assertTrue(any("unknown type 'widget'" in m for m in messages))
+
+    def test_type_lines_are_not_tags(self):
+        # A described type must not satisfy the tag taxonomy: a page tagged
+        # 'source' when only the TYPE 'source' is described should warn.
+        root = make_wiki(self.tmp, files={
+            "concepts/alpha-note.md": page("concept", "A note.", tags="[source]"),
+        })
+        report = gather(root)
+        tag_warnings = [f[3] for f in findings(report, "tags", "WARNING")]
+        self.assertTrue(any("'source'" in m for m in tag_warnings))
+
+    def test_glossary_gate_off(self):
+        make_wiki(self.tmp)
+        use_variant_with("generic", types_glossary=False)
+        root = Path(self.tmp)
+        (root / "taxonomy.md").write_text(
+            "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
+        )
+        report = gather(root)
+        self.assertEqual(findings(report, "types"), [])
+
+
 class TestOkfConformance(WikiTest):
     def test_stray_markdown_needs_frontmatter_and_type(self):
         root = make_wiki(self.tmp, files={

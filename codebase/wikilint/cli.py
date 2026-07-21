@@ -28,6 +28,7 @@ def gather_report(root):
     checks.check_membership(pages, report)
     checks.check_claude_size(root, report)
     checks.check_tags(pages, report, root)
+    checks.check_types(pages, report, root)
     checks.check_contested_age(pages, report)
     checks.check_inferred_markers(pages, report)
     checks.check_inbox(root, report)

@@ -34,6 +34,10 @@ DEFAULTS = {
     "extra_secret_patterns": [],
     # Secrets matches on lines matching any of these regexes are suppressed.
     "secret_allow_res": [],
+    # Require taxonomy.md to carry a '## Page types' section describing every
+    # schema type with a one-line meaning, so the bundle self-describes its
+    # type vocabulary to OKF consumers. Off for non-wiki markdown trees.
+    "types_glossary": True,
     # Append-only operations log checked by check_log; None disables.
     "log_file": "log.md",
     # Callables(pages, report, root) run at the end of every check pass.
@@ -74,6 +78,8 @@ def _validate(cfg):
                 f"index_file must stay within the wiki root: {index_file!r}")
     if cfg["log_file"] is not None and not isinstance(cfg["log_file"], str):
         raise ConfigError("log_file must be None or a relative path string")
+    if not isinstance(cfg["types_glossary"], bool):
+        raise ConfigError("types_glossary must be a bool")
     if cfg["index_body_fn"] is not None and not callable(cfg["index_body_fn"]):
         raise ConfigError("index_body_fn must be None or callable")
     for fn in cfg["extra_checks"]:
