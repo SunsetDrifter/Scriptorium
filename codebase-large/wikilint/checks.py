@@ -313,6 +313,50 @@ def check_types(pages, report, root):
         )
 
 
+def check_skills(pages, report, root):
+    """Harness skill wrappers must pair 1:1 with workflows: every
+    workflows/<name>.md needs <skills_dir>/<name>/SKILL.md whose body points
+    back at the workflow file, and no wrapper may point at nothing. Errors,
+    not warnings: the wrappers are dispatch surface, and silent drift there
+    means a slash command runs a stale or missing procedure."""
+    if CONFIG["skills_dir"] is None:
+        return
+    skills_root = root / CONFIG["skills_dir"]
+    workflows_root = root / "workflows"
+    wf_stems = (
+        {p.stem for p in workflows_root.glob("*.md")}
+        if workflows_root.is_dir() else set()
+    )
+    skill_names = (
+        {d.name for d in skills_root.iterdir() if d.is_dir()}
+        if skills_root.is_dir() else set()
+    )
+    sdir = CONFIG["skills_dir"]
+    for stem in sorted(wf_stems - skill_names):
+        report.error(
+            "skills", f"workflows/{stem}.md",
+            f"no skill wrapper; add {sdir}/{stem}/SKILL.md pointing at it",
+        )
+    for name in sorted(skill_names - wf_stems):
+        report.error(
+            "skills", f"{sdir}/{name}/SKILL.md",
+            f"orphan wrapper; workflows/{name}.md does not exist",
+        )
+    for name in sorted(wf_stems & skill_names):
+        skill_md = skills_root / name / "SKILL.md"
+        rel = f"{sdir}/{name}/SKILL.md"
+        if not skill_md.is_file():
+            report.error("skills", rel, "missing SKILL.md in wrapper directory")
+            continue
+        body = skill_md.read_text(encoding="utf-8", errors="replace")
+        if f"workflows/{name}.md" not in body:
+            report.error(
+                "skills", rel,
+                f"wrapper does not reference workflows/{name}.md; "
+                "the body must point at its workflow file",
+            )
+
+
 def check_contested_age(pages, report):
     today = date.today()
     for p in pages:
