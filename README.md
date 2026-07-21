@@ -6,7 +6,9 @@ Every wiki produced from these templates is a conformant [Open Knowledge Format 
 
 ## Where this sits in the OKF ecosystem
 
-Most OKF tooling generates wikis: point a compiler at a codebase, a dataset, or a pile of documents and get a bundle. Scriptorium solves the other half of the problem, keeping a wiki true after week one. Its templates make an agent the accountable maintainer of the bundle: ownership rules, an append-only log, a commit per operation, and a deterministic linter that enforces freshness, contested-claim reconciliation, link integrity, and OKF conformance on every commit. Generated wikis are impressive on day one; these schemas are for knowledge that cannot be regenerated from a source of truth and has to still be right in month six. A file-level comparison with the OKF reference agent is in [docs/research/2026-07-21-claude-md-vs-okf-reference-agent.md](docs/research/2026-07-21-claude-md-vs-okf-reference-agent.md).
+Most OKF tooling generates wikis: point a compiler at a codebase, a dataset, or a pile of documents and get a bundle. Scriptorium solves the other half of the problem, keeping a wiki true after week one. Its templates make an agent the accountable maintainer of the bundle: ownership rules, an append-only log, a commit per operation, and a deterministic linter that enforces freshness, contested-claim reconciliation, link integrity, and OKF conformance on every commit. Generated wikis are impressive on day one; these schemas are for knowledge that cannot be regenerated from a source of truth and has to still be right in month six.
+
+One layering note when comparing bundles across producers: OKF reserves two filenames (`index.md`, `log.md`) and gives directory names no meaning. Folder taxonomies like `concepts/` or `synthesis/` here, or `tables/` and `references/` in Google's sample bundles, are producer conventions; the portable signal for consumers is the frontmatter `type` field.
 
 ## Variants
 
