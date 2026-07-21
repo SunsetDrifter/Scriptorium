@@ -25,7 +25,7 @@ Source pages are inventory: every ingested raw source gets one. Any other new pa
 3. **Citation test.** You can write a sentence in an existing page of the form "See [X](/concepts/x.md) for ..." where X is a concrete noun. If the best sentence you can write is "see this page for context", it fails.
 4. **Reuse test.** At least two existing pages would cite it, or one page needs it as load-bearing background that does not fit inline.
 
-When in doubt, do not create the page; integrate the material into an existing one instead. A wiki that grows slowly is fine. A wiki full of overview and misc pages is noise.
+When in doubt, do not create the page; integrate the material into an existing one instead. A wiki with few concept pages is fine; a wiki full of `concepts/overview.md` and `concepts/misc-notes.md` is noise.
 
 Log entry format (append your bullets under today's `## YYYY-MM-DD` heading if it already exists; otherwise add a new heading at the top, newest first):
 
