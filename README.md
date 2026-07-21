@@ -4,6 +4,10 @@ Schemas for LLM-maintained markdown wikis. Each variant is a self-contained temp
 
 Every wiki produced from these templates is a conformant [Open Knowledge Format (OKF) v0.1](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle, so it can be consumed by any OKF-aware agent or tool without translation.
 
+## Where this sits in the OKF ecosystem
+
+Most OKF tooling generates wikis: point a compiler at a codebase, a dataset, or a pile of documents and get a bundle. Scriptorium solves the other half of the problem, keeping a wiki true after week one. Its templates make an agent the accountable maintainer of the bundle: ownership rules, an append-only log, a commit per operation, and a deterministic linter that enforces freshness, contested-claim reconciliation, link integrity, and OKF conformance on every commit. Generated wikis are impressive on day one; these schemas are for knowledge that cannot be regenerated from a source of truth and has to still be right in month six. A file-level comparison with the OKF reference agent is in [docs/research/2026-07-21-claude-md-vs-okf-reference-agent.md](docs/research/2026-07-21-claude-md-vs-okf-reference-agent.md).
+
 ## Variants
 
 | Variant | For | Distinctive machinery |
