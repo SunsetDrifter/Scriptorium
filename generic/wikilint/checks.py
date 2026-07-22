@@ -276,8 +276,7 @@ def check_tags(pages, report, root):
 def check_types(pages, report, root):
     """The type glossary: taxonomy.md's `## Page types` section must describe
     every schema type with a one-line meaning, so the bundle self-describes
-    its type vocabulary to foreign OKF consumers (docs/research
-    2026-07-22 position note)."""
+    its type vocabulary to foreign OKF consumers."""
     if CONFIG["taxonomy_file"] is None or not CONFIG["types_glossary"]:
         return
     taxonomy = load_taxonomy(root)
