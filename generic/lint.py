@@ -13,8 +13,10 @@ CONFIG = {
     # Top-level entries that are allowed to exist but are not wiki pages.
     "non_page_allowed": [
         "CLAUDE.md", "index.md", "log.md", "lint.py", "wikilint", "taxonomy.md",
-        "raw", "workflows", ".git", ".gitignore", ".githooks",
+        "raw", "workflows", ".git", ".gitignore", ".githooks", ".claude",
     ],
+    # Claude Code skill wrappers pair 1:1 with workflows/ (check_skills).
+    "skills_dir": ".claude/skills",
     "raw_dir": "raw",
     "inbox_dir": "raw/inbox",
     "inbox_warn_count": 10,

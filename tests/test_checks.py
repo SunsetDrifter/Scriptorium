@@ -728,7 +728,10 @@ class TestSkillsPairing(WikiTest):
         return root
 
     def test_disabled_by_default(self):
-        root = make_wiki(self.tmp, files={"workflows/document.md": self.WORKFLOW})
+        # "generic" now ships skills_dir (task 1: generic-variant wrappers), so
+        # this exercises a variant that still leaves the knob unset.
+        root = make_wiki(self.tmp, variant="codebase",
+                          files={"workflows/document.md": self.WORKFLOW})
         report = gather(root)
         self.assertEqual(findings(report, "skills"), [])
 
