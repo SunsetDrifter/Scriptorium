@@ -31,9 +31,12 @@ class TestEngineIdentity(unittest.TestCase):
 # Knobs a variant may set differently from the others, each with a reason.
 # Anything not listed here must stay uniform across variants.
 INTENTIONAL_DIVERGENCES = {
-    # skills-dispatch prototype: homelab pairs workflows/ with .claude/skills/
-    # wrappers; other variants adopt it only if the prototype graduates.
+    # skills-dispatch prototype: generic and homelab pair workflows/ with
+    # .claude/skills/ wrappers; other variants adopt it only if the prototype
+    # graduates. skills_prefix namespaces the wrappers (wiki-*) away from
+    # globally installed skills (field finding, 2026-07-22).
     "skills_dir",
+    "skills_prefix",
 }
 
 

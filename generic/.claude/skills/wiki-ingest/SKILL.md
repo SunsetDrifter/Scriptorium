@@ -1,5 +1,5 @@
 ---
-name: ingest
+name: wiki-ingest
 description: Ingest one raw source into the wiki: source page, affected pages, new pages where warranted. Use when the human says "ingest <source>".
 ---
 

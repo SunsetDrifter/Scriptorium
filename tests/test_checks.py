@@ -718,7 +718,7 @@ class TestTypesGlossary(WikiTest):
 class TestSkillsPairing(WikiTest):
     WORKFLOW = "---\ntype: workflow\n---\n\n# Document\n\nSteps.\n"
     WRAPPER = (
-        "---\nname: document\ndescription: Document a thing.\n---\n\n"
+        "---\nname: wiki-document\ndescription: Document a thing.\n---\n\n"
         "Read `workflows/document.md` and follow it exactly.\n"
     )
 
@@ -726,6 +726,19 @@ class TestSkillsPairing(WikiTest):
         root = make_wiki(self.tmp, files=files)
         use_variant_with("generic", skills_dir=".claude/skills")
         return root
+
+    def test_unprefixed_wrapper_is_orphan(self):
+        # Field finding 2026-07-22: bare skill names collide with global
+        # skills, so pairing requires the configured prefix.
+        root = self.wiki(files={
+            "workflows/document.md": self.WORKFLOW,
+            ".claude/skills/document/SKILL.md": self.WRAPPER,
+        })
+        report = gather(root)
+        messages = [f[3] for f in findings(report, "skills", "ERROR")]
+        self.assertEqual(len(messages), 2)
+        self.assertTrue(any("no skill wrapper" in m for m in messages))
+        self.assertTrue(any("orphan wrapper" in m for m in messages))
 
     def test_disabled_by_default(self):
         # "generic" now ships skills_dir (task 1: generic-variant wrappers), so
@@ -738,7 +751,7 @@ class TestSkillsPairing(WikiTest):
     def test_paired_wrapper_passes(self):
         root = self.wiki(files={
             "workflows/document.md": self.WORKFLOW,
-            ".claude/skills/document/SKILL.md": self.WRAPPER,
+            ".claude/skills/wiki-document/SKILL.md": self.WRAPPER,
         })
         report = gather(root)
         self.assertEqual(findings(report, "skills"), [])
@@ -752,7 +765,7 @@ class TestSkillsPairing(WikiTest):
 
     def test_orphan_wrapper_errors(self):
         root = self.wiki(files={
-            ".claude/skills/ghost/SKILL.md": self.WRAPPER,
+            ".claude/skills/wiki-ghost/SKILL.md": self.WRAPPER,
         })
         report = gather(root)
         hits = findings(report, "skills", "ERROR")
@@ -762,8 +775,8 @@ class TestSkillsPairing(WikiTest):
     def test_wrapper_must_reference_its_workflow(self):
         root = self.wiki(files={
             "workflows/document.md": self.WORKFLOW,
-            ".claude/skills/document/SKILL.md":
-                "---\nname: document\ndescription: d\n---\n\nJust do it from memory.\n",
+            ".claude/skills/wiki-document/SKILL.md":
+                "---\nname: wiki-document\ndescription: d\n---\n\nJust do it from memory.\n",
         })
         report = gather(root)
         hits = findings(report, "skills", "ERROR")

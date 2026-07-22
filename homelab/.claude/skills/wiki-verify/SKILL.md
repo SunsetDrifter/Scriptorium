@@ -1,5 +1,5 @@
 ---
-name: verify
+name: wiki-verify
 description: Reality-check wiki pages against the actual infrastructure. Use when the human says "verify components" or "verify <component>".
 ---
 

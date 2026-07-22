@@ -1,5 +1,5 @@
 ---
-name: incident
+name: wiki-incident
 description: File an incident page for something that broke. Use when the human says "log incident: <thing>" or describes an outage to record.
 ---
 

@@ -85,7 +85,7 @@ When the human triggers an operation, read the matching file and follow it exact
 | "reconcile <page>" | `workflows/reconcile.md` |
 | "maintenance pass" / "review maintenance" | `workflows/maintain.md` |
 
-In Claude Code each workflow is also a skill wrapper under `.claude/skills/`, so `/ingest`, `/triage`, etc. dispatch the same files deterministically; lint errors when a wrapper and its workflow drift apart.
+In Claude Code each workflow is also a skill wrapper under `.claude/skills/`, so `/wiki-ingest`, `/wiki-triage`, etc. dispatch the same files deterministically (the wiki- prefix avoids collisions with globally installed skills); lint errors when a wrapper and its workflow drift apart.
 
 ## Deterministic checks
 

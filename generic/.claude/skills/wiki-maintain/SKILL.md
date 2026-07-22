@@ -1,5 +1,5 @@
 ---
-name: maintain
+name: wiki-maintain
 description: Run or review the unattended maintenance pass on the maintenance branch. Use when the human says "maintenance pass" or "review maintenance".
 ---
 

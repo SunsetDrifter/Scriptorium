@@ -20,6 +20,7 @@ CONFIG = {
     ],
     # Claude Code skill wrappers pair 1:1 with workflows/ (check_skills).
     "skills_dir": ".claude/skills",
+    "skills_prefix": "wiki-",
     "raw_dir": "raw",
     "inbox_dir": "raw/inbox",
     "inbox_warn_count": 10,

@@ -1,5 +1,5 @@
 ---
-name: lint
+name: wiki-lint
 description: Run the deterministic lint plus the judgment-only review pass. Use when the human says "lint the wiki".
 ---
 

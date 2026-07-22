@@ -1,5 +1,5 @@
 ---
-name: query
+name: wiki-query
 description: Answer a question from the wiki, scanning frontmatter and the index before opening page bodies. Use for any question answerable from the wiki.
 ---
 

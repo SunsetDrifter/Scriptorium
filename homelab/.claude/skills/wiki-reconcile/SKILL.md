@@ -1,5 +1,5 @@
 ---
-name: reconcile
+name: wiki-reconcile
 description: Resolve a contested page: weigh the disagreeing sources and rewrite latest-evidence-first. Use when the human says "reconcile <page>".
 ---
 

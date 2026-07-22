@@ -1,5 +1,5 @@
 ---
-name: document
+name: wiki-document
 description: Document a homelab component, config, or change in the wiki. Use when the human says "document the new VM", "document this OPNsense config", or similar.
 ---
 
