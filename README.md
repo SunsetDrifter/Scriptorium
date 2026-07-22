@@ -54,6 +54,20 @@ Each variant ships a `workflows/maintain.md` pass designed for scheduled runs. E
 0 3 * * * cd ~/my-wiki && claude -p "maintenance pass" --permission-mode acceptEdits
 ```
 
+Two permission prerequisites, or the headless run blocks at its first `git` command (`acceptEdits` auto-approves edits, not Bash; field-tested 2026-07-22):
+
+1. Add a `.claude/settings.json` to the wiki allowing exactly the commands the pass needs, and nothing destructive:
+
+```json
+{"permissions": {"allow": [
+  "Bash(python3 lint.py:*)", "Bash(git status:*)", "Bash(git branch:*)",
+  "Bash(git checkout:*)", "Bash(git add:*)", "Bash(git commit:*)",
+  "Bash(git log:*)", "Bash(git diff:*)", "Bash(rg:*)", "Bash(grep:*)"
+]}}
+```
+
+2. Trust the workspace (open the wiki in Claude Code interactively once and accept the trust dialog) — untrusted workspaces ignore project settings in headless runs. Alternatively, pass the same rules on the command line via `--allowedTools`, which needs no trust.
+
 The run commits to the `maintenance` branch only. Review with "review maintenance" in a normal session, then merge. If a run hits something outside its allowed actions (a secrets hit, an ambiguous fix), it leaves the tree uncommitted and reports the blocker instead.
 
 ## Deliberately not adopted
