@@ -740,11 +740,11 @@ class TestSkillsPairing(WikiTest):
         self.assertTrue(any("no skill wrapper" in m for m in messages))
         self.assertTrue(any("orphan wrapper" in m for m in messages))
 
-    def test_disabled_by_default(self):
-        # "generic" now ships skills_dir (task 1: generic-variant wrappers), so
-        # this exercises a variant that still leaves the knob unset.
-        root = make_wiki(self.tmp, variant="codebase",
-                          files={"workflows/document.md": self.WORKFLOW})
+    def test_disabled_when_knob_unset(self):
+        # Every variant now ships skills_dir, so exercise the engine default
+        # (None) by overriding it off: no pairing checks run.
+        root = make_wiki(self.tmp, files={"workflows/document.md": self.WORKFLOW})
+        use_variant_with("generic", skills_dir=None)
         report = gather(root)
         self.assertEqual(findings(report, "skills"), [])
 

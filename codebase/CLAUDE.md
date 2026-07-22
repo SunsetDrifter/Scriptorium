@@ -100,6 +100,8 @@ When the human triggers an operation, read the matching file and follow it exact
 | "reconcile <page>" | `workflows/reconcile.md` |
 | "maintenance pass" / "review maintenance" | `workflows/maintain.md` |
 
+In Claude Code each workflow is also a skill wrapper under `.claude/skills/`, so `/wiki-document`, `/wiki-triage`, etc. dispatch the same files deterministically (the wiki- prefix avoids collisions with globally installed skills); lint errors when a wrapper and its workflow drift apart.
+
 ## Deterministic checks
 
 `python3 lint.py check` handles every mechanical health check: frontmatter validity, broken links, orphans (with unlinked-mention hints), dangling references (including `defined_in` and `includes`), architecture membership of active modules (prime directive 3), tag taxonomy, stale contested pages, sync drift against the pinning block, missing Mermaid diagrams on architecture pages, ADR numbering gaps and superseded ADRs without forward links, inbox health, secrets, index drift, log format, OKF conformance. Run it instead of checking these by hand, and fix errors it reports before finishing any operation. A pre-commit hook (installed via `git config core.hooksPath .githooks`) lints the staged snapshot and makes errors uncommittable; never bypass it with `--no-verify`.
