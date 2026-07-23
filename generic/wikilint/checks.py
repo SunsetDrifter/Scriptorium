@@ -312,6 +312,54 @@ def check_types(pages, report, root):
         )
 
 
+def check_skills(pages, report, root):
+    """Harness skill wrappers must pair 1:1 with workflows: every
+    workflows/<name>.md needs <skills_dir>/<name>/SKILL.md whose body points
+    back at the workflow file, and no wrapper may point at nothing. Errors,
+    not warnings: the wrappers are dispatch surface, and silent drift there
+    means a slash command runs a stale or missing procedure."""
+    if CONFIG["skills_dir"] is None:
+        return
+    skills_root = root / CONFIG["skills_dir"]
+    workflows_root = root / "workflows"
+    wf_stems = (
+        {p.stem for p in workflows_root.glob("*.md")}
+        if workflows_root.is_dir() else set()
+    )
+    prefix = CONFIG["skills_prefix"]
+    skill_names = (
+        {d.name for d in skills_root.iterdir() if d.is_dir()}
+        if skills_root.is_dir() else set()
+    )
+    expected = {prefix + stem: stem for stem in wf_stems}
+    sdir = CONFIG["skills_dir"]
+    for name in sorted(set(expected) - skill_names):
+        report.error(
+            "skills", f"workflows/{expected[name]}.md",
+            f"no skill wrapper; add {sdir}/{name}/SKILL.md pointing at it",
+        )
+    for name in sorted(skill_names - set(expected)):
+        report.error(
+            "skills", f"{sdir}/{name}/SKILL.md",
+            f"orphan wrapper; no workflow pairs with it "
+            f"(expected form: {prefix}<workflow-stem>)",
+        )
+    for name in sorted(set(expected) & skill_names):
+        stem = expected[name]
+        skill_md = skills_root / name / "SKILL.md"
+        rel = f"{sdir}/{name}/SKILL.md"
+        if not skill_md.is_file():
+            report.error("skills", rel, "missing SKILL.md in wrapper directory")
+            continue
+        body = skill_md.read_text(encoding="utf-8", errors="replace")
+        if f"workflows/{stem}.md" not in body:
+            report.error(
+                "skills", rel,
+                f"wrapper does not reference workflows/{stem}.md; "
+                "the body must point at its workflow file",
+            )
+
+
 def check_contested_age(pages, report):
     today = date.today()
     for p in pages:

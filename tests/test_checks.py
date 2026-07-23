@@ -715,6 +715,75 @@ class TestTypesGlossary(WikiTest):
         self.assertEqual(findings(report, "types"), [])
 
 
+class TestSkillsPairing(WikiTest):
+    WORKFLOW = "---\ntype: workflow\n---\n\n# Document\n\nSteps.\n"
+    WRAPPER = (
+        "---\nname: wiki-document\ndescription: Document a thing.\n---\n\n"
+        "Read `workflows/document.md` and follow it exactly.\n"
+    )
+
+    def wiki(self, files=None):
+        root = make_wiki(self.tmp, files=files)
+        use_variant_with("generic", skills_dir=".claude/skills")
+        return root
+
+    def test_unprefixed_wrapper_is_orphan(self):
+        # Field finding 2026-07-22: bare skill names collide with global
+        # skills, so pairing requires the configured prefix.
+        root = self.wiki(files={
+            "workflows/document.md": self.WORKFLOW,
+            ".claude/skills/document/SKILL.md": self.WRAPPER,
+        })
+        report = gather(root)
+        messages = [f[3] for f in findings(report, "skills", "ERROR")]
+        self.assertEqual(len(messages), 2)
+        self.assertTrue(any("no skill wrapper" in m for m in messages))
+        self.assertTrue(any("orphan wrapper" in m for m in messages))
+
+    def test_disabled_when_knob_unset(self):
+        # Every variant now ships skills_dir, so exercise the engine default
+        # (None) by overriding it off: no pairing checks run.
+        root = make_wiki(self.tmp, files={"workflows/document.md": self.WORKFLOW})
+        use_variant_with("generic", skills_dir=None)
+        report = gather(root)
+        self.assertEqual(findings(report, "skills"), [])
+
+    def test_paired_wrapper_passes(self):
+        root = self.wiki(files={
+            "workflows/document.md": self.WORKFLOW,
+            ".claude/skills/wiki-document/SKILL.md": self.WRAPPER,
+        })
+        report = gather(root)
+        self.assertEqual(findings(report, "skills"), [])
+
+    def test_workflow_without_wrapper_errors(self):
+        root = self.wiki(files={"workflows/document.md": self.WORKFLOW})
+        report = gather(root)
+        hits = findings(report, "skills", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("no skill wrapper", hits[0][3])
+
+    def test_orphan_wrapper_errors(self):
+        root = self.wiki(files={
+            ".claude/skills/wiki-ghost/SKILL.md": self.WRAPPER,
+        })
+        report = gather(root)
+        hits = findings(report, "skills", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("orphan wrapper", hits[0][3])
+
+    def test_wrapper_must_reference_its_workflow(self):
+        root = self.wiki(files={
+            "workflows/document.md": self.WORKFLOW,
+            ".claude/skills/wiki-document/SKILL.md":
+                "---\nname: wiki-document\ndescription: d\n---\n\nJust do it from memory.\n",
+        })
+        report = gather(root)
+        hits = findings(report, "skills", "ERROR")
+        self.assertEqual(len(hits), 1)
+        self.assertIn("does not reference", hits[0][3])
+
+
 class TestOkfConformance(WikiTest):
     def test_stray_markdown_needs_frontmatter_and_type(self):
         root = make_wiki(self.tmp, files={

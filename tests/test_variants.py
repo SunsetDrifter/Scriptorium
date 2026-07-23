@@ -28,13 +28,18 @@ class TestEngineIdentity(unittest.TestCase):
                 py_compile.compile(str(p), doraise=True)
 
 
+# Knobs a variant may set differently from the others, each with a reason.
+# Anything not listed here must stay uniform across variants.
+INTENTIONAL_DIVERGENCES = set()
+
+
 class TestConfigSanity(unittest.TestCase):
     def test_configs_load_and_share_keys(self):
         key_sets = []
         for variant in VARIANTS:
             config, extra = load_variant_config(variant)
             self.assertTrue(callable(extra), variant)
-            key_sets.append((variant, set(config)))
+            key_sets.append((variant, set(config) - INTENTIONAL_DIVERGENCES))
         _, reference = key_sets[0]
         for variant, keys in key_sets[1:]:
             self.assertEqual(keys, reference, f"{variant} CONFIG keys diverge from generic")
@@ -68,6 +73,8 @@ class TestConfigSanity(unittest.TestCase):
             configure(config, extra)
             for key in DEFAULTS:
                 self.assertIn(key, CONFIG, f"{variant} missing extension key {key}")
+                if key in INTENTIONAL_DIVERGENCES:
+                    continue
                 seen.setdefault(key, CONFIG[key])
                 self.assertEqual(CONFIG[key], seen[key],
                                  f"{variant} diverges on extension key {key}")

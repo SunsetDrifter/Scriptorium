@@ -38,6 +38,16 @@ DEFAULTS = {
     # schema type with a one-line meaning, so the bundle self-describes its
     # type vocabulary to OKF consumers. Off for non-wiki markdown trees.
     "types_glossary": True,
+    # Directory of harness skill wrappers (e.g. ".claude/skills"), each a
+    # <prefix><name>/SKILL.md whose body points at workflows/<name>.md. When
+    # set, check_skills errors on any drift between the two sets. None
+    # disables.
+    "skills_dir": None,
+    # Wrapper-name prefix, namespacing wiki skills away from a user's global
+    # skills (field finding, 2026-07-22: a bare /triage collided with a
+    # global triage skill). "wiki-" pairs workflows/triage.md with
+    # <skills_dir>/wiki-triage/SKILL.md.
+    "skills_prefix": "",
     # Append-only operations log checked by check_log; None disables.
     "log_file": "log.md",
     # Callables(pages, report, root) run at the end of every check pass.
@@ -80,6 +90,16 @@ def _validate(cfg):
         raise ConfigError("log_file must be None or a relative path string")
     if not isinstance(cfg["types_glossary"], bool):
         raise ConfigError("types_glossary must be a bool")
+    skills_dir = cfg["skills_dir"]
+    if skills_dir is not None:
+        if not isinstance(skills_dir, str) or not skills_dir.strip():
+            raise ConfigError("skills_dir must be None or a non-empty relative path")
+        posix = PurePosixPath(skills_dir)
+        if posix.is_absolute() or ".." in posix.parts:
+            raise ConfigError(
+                f"skills_dir must stay within the wiki root: {skills_dir!r}")
+    if not isinstance(cfg["skills_prefix"], str):
+        raise ConfigError("skills_prefix must be a string")
     if cfg["index_body_fn"] is not None and not callable(cfg["index_body_fn"]):
         raise ConfigError("index_body_fn must be None or callable")
     for fn in cfg["extra_checks"]:
