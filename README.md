@@ -52,7 +52,7 @@ Each variant ships a `workflows/maintain.md` pass designed for scheduled runs. E
 
 ```sh
 # nightly, from the wiki root
-0 3 * * * cd ~/my-wiki && claude -p "maintenance pass" --permission-mode acceptEdits
+0 3 * * * cd ~/my-wiki && claude -p "/wiki-maintain" --permission-mode acceptEdits
 ```
 
 Two permission prerequisites, or the headless run blocks at its first `git` command (`acceptEdits` auto-approves edits, not Bash; field-tested 2026-07-22):
