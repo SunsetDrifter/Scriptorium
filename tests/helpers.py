@@ -5,11 +5,11 @@ from datetime import date, timedelta
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "generic"))
+sys.path.insert(0, str(REPO / "wiki"))
 
 from wikilint.settings import configure  # noqa: E402
 
-VARIANTS = ["generic", "homelab", "codebase", "codebase-large"]
+VARIANTS = ["wiki"]
 
 TODAY = date.today().isoformat()
 DAYS_AGO_41 = (date.today() - timedelta(days=41)).isoformat()
@@ -17,9 +17,17 @@ DAYS_AGO_95 = (date.today() - timedelta(days=95)).isoformat()
 
 
 def load_variant_config(variant):
-    """Execute a variant's lint.py head (the __main__ guard keeps it inert)."""
+    """Execute a variant's lint.py head (the __main__ guard keeps it inert).
+
+    Besides the shipped template ("wiki"), configs of the retired variants
+    live on under tests/fixtures/ purely as engine coverage: they exercise
+    knobs (membership, staleness, sync_drift, coverage) no shipped template
+    currently sets."""
+    path = REPO / variant / "lint.py"
+    if not path.is_file():
+        path = REPO / "tests" / "fixtures" / variant / "lint.py"
     ns = {"__name__": "lint_config_under_test"}
-    exec(compile((REPO / variant / "lint.py").read_text(), "lint.py", "exec"), ns)
+    exec(compile(path.read_text(), "lint.py", "exec"), ns)
     return ns["CONFIG"], ns["index_entry_extra"]
 
 
@@ -46,7 +54,7 @@ def page(ptype, description, extra_fm="", body="Body.\n", tags="[alpha]",
     )
 
 
-def make_wiki(tmp, variant="generic", files=None, taxonomy="- alpha — test tag\n- beta — test tag\n"):
+def make_wiki(tmp, variant="wiki", files=None, taxonomy="- alpha — test tag\n- beta — test tag\n"):
     """Create a minimal valid wiki skeleton for the variant plus extra files."""
     root = Path(tmp)
     config = use_variant(variant)
