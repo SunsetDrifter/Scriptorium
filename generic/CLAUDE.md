@@ -54,7 +54,8 @@ created: 2026-04-10
 updated: 2026-04-10
 description: One line saying what this page covers, used for scanning.
 tags: [tag1, tag2]
-sources: [sources/foo.md, sources/bar.md]
+sources:
+  - resource: /sources/foo.md
 supersedes: []
 confidence: low | contested    # optional; absent means normal
 ---
@@ -63,7 +64,7 @@ confidence: low | contested    # optional; absent means normal
 Rules:
 - `created` is set once and never changed. `updated` changes on every edit.
 - `description` is one sentence. It is how you and the index find this page without opening it. Keep it accurate on every edit.
-- `sources` lists every source page that supports claims on this page.
+- `sources` lists every source page that supports claims on this page; each entry is a mapping whose `resource` is the bundle-absolute page path (OKF v0.2 shape). External URLs are allowed as `resource` for material with no source page.
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means two or more sources disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
 - Every tag must appear in `taxonomy.md`. Introducing a tag means adding it there, with a one-line meaning, in the same commit. The allowed page types are described there too, under '## Page types'.
 - Mark claims you inferred rather than read with `(inferred)` inline; a page containing any carries `confidence: low`.

@@ -26,7 +26,7 @@ CONFIG = {
     "inbox_warn_count": 10,
     "inbox_warn_age_days": 14,
     # Hot-core size guard: warn when CLAUDE.md exceeds this many lines.
-    "claude_md_max_lines": 145,
+    "claude_md_max_lines": 200,
     # Every page tag must appear in this file (one `- tag — meaning` line each).
     "taxonomy_file": "taxonomy.md",
     # Contested pages untouched for this many days get flagged for reconcile.

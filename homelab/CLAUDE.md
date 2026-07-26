@@ -60,7 +60,8 @@ created: 2026-04-10
 updated: 2026-04-10
 description: One line saying what this page covers, used for scanning.
 tags: [networking, vlan]
-sources: [sources/decisions/2026-04-10-vlan-split.md]
+sources:
+  - resource: /sources/decisions/2026-04-10-vlan-split.md
 confidence: low | contested    # optional; absent means normal
 ---
 ```
@@ -84,6 +85,7 @@ includes: [components/proxmox-01.md, components/opnsense.md]
 ```
 
 Rules:
+- `sources` entries are mappings whose `resource` is the bundle-absolute page path (OKF v0.2 shape); external URLs are allowed for material with no source page.
 - `last_verified` on components is the most important field in the schema. Older than 60 days gets flagged by lint.
 - `depends_on` is the only stored dependency edge. Reverse edges (what consumes a component) are derived, never stored: `python3 lint.py reverse-deps` prints the map.
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means sources or the human disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
