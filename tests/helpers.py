@@ -9,6 +9,8 @@ sys.path.insert(0, str(REPO / "wiki"))
 
 from wikilint.settings import configure  # noqa: E402
 
+import extension_configs  # noqa: E402
+
 VARIANTS = ["wiki"]
 
 TODAY = date.today().isoformat()
@@ -17,17 +19,15 @@ DAYS_AGO_95 = (date.today() - timedelta(days=95)).isoformat()
 
 
 def load_variant_config(variant):
-    """Execute a variant's lint.py head (the __main__ guard keeps it inert).
-
-    Besides the shipped template ("wiki"), configs of the retired variants
-    live on under tests/fixtures/ purely as engine coverage: they exercise
-    knobs (membership, staleness, sync_drift, coverage) no shipped template
-    currently sets."""
-    path = REPO / variant / "lint.py"
-    if not path.is_file():
-        path = REPO / "tests" / "fixtures" / variant / "lint.py"
+    """Load a config under test: the shipped template's lint.py head (the
+    __main__ guard keeps it inert), or a feature-named bundle from
+    extension_configs.py exercising engine knobs the template leaves at
+    their defaults."""
+    if variant in extension_configs.EXTENSION_CONFIGS:
+        return (dict(extension_configs.EXTENSION_CONFIGS[variant]),
+                extension_configs.index_entry_extra)
     ns = {"__name__": "lint_config_under_test"}
-    exec(compile(path.read_text(), "lint.py", "exec"), ns)
+    exec(compile((REPO / variant / "lint.py").read_text(), "lint.py", "exec"), ns)
     return ns["CONFIG"], ns["index_entry_extra"]
 
 

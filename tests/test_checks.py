@@ -62,8 +62,8 @@ class TestBodyExtraction(WikiTest):
     def test_trailing_space_delimiter_keeps_body(self):
         # Review regression: "--- " closing line used to empty the body,
         # silently skipping body checks and false-erroring mermaid pages.
-        use_variant("homelab")
-        root = make_wiki(self.tmp, variant="homelab", files={
+        use_variant("infra")
+        root = make_wiki(self.tmp, variant="infra", files={
             "topology/lan.md": (
                 "---\ntype: topology\ncreated: 2026-07-01\nupdated: 2026-07-01\n"
                 "description: LAN map.\ntags: [alpha]\nsources: []\nscope: l2\n"
@@ -122,7 +122,7 @@ class TestMembership(WikiTest):
         component = page("component", "A switch.", tags="[alpha]",
                          extra_fm="component_kind: device\nstatus: active\n"
                                   f"last_verified: {TODAY}\ndepends_on: []\n")
-        root = make_wiki(self.tmp, variant="homelab", files={
+        root = make_wiki(self.tmp, variant="infra", files={
             "components/switch-01.md": component,
             "components/router-01.md": component.replace("A switch.", "A router linking [[switch-01]]."),
         })
@@ -131,7 +131,7 @@ class TestMembership(WikiTest):
         self.assertIn("components/switch-01.md", flagged)
 
     def test_included_component_passes(self):
-        root = make_wiki(self.tmp, variant="homelab", files={
+        root = make_wiki(self.tmp, variant="infra", files={
             "components/switch-01.md": page(
                 "component", "A switch.",
                 extra_fm="component_kind: device\nstatus: active\n"
@@ -234,8 +234,8 @@ class TestPinningAndDrift(WikiTest):
     def test_pinning_quotes_block_lists_and_decoy_fence(self):
         # Review regression: quoted commits, block lists, and an earlier yaml
         # fence all silently corrupted the pinning data.
-        use_variant("codebase")
-        root = make_wiki(self.tmp, variant="codebase")
+        use_variant("pinned-repo")
+        root = make_wiki(self.tmp, variant="pinned-repo")
         (root / "index.md").write_text(self._index_head())
         from wikilint.model import parse_index_pinning
         pinning = parse_index_pinning(root)
@@ -248,7 +248,7 @@ class TestPinningAndDrift(WikiTest):
                       extra_fm="source_path: libs/auth/\nlanguage: go\nstatus: active\n"
                                "depends_on: []\nlast_verified_commit: e4f5g6h\n"
                                f"last_verified: {TODAY}\n")
-        root = make_wiki(self.tmp, variant="codebase",
+        root = make_wiki(self.tmp, variant="pinned-repo",
                          files={"modules/auth.md": module})
         (root / "index.md").write_text(self._index_head())
         report = gather(root)
@@ -259,12 +259,12 @@ class TestPinningAndDrift(WikiTest):
 class TestReverseDeps(WikiTest):
     def test_all_relationship_fields_reversed(self):
         # Review regression: only depends_on used to be derivable.
-        use_variant("codebase")
+        use_variant("pinned-repo")
         from wikilint.settings import CONFIG
         for field in ("defined_in", "modules", "exposes", "consumes",
                       "producers", "consumers", "depends_on"):
             self.assertIn(field, CONFIG["reverse_fields"])
-        root = make_wiki(self.tmp, variant="codebase", files={
+        root = make_wiki(self.tmp, variant="pinned-repo", files={
             "modules/auth.md": page(
                 "module", "Auth.", extra_fm="source_path: libs/auth/\nlanguage: go\n"
                 f"status: active\ndepends_on: []\nlast_verified_commit: abc\nlast_verified: {TODAY}\n"),
@@ -304,7 +304,7 @@ class TestAdrsAndStaleness(WikiTest):
                    extra_fm="adr_number: 0001\nstatus: superseded\ndate: 2026-07-01\n")
         adr3 = page("adr", "Choose sqlite.", tags="[alpha]",
                     extra_fm="adr_number: 0003\nstatus: accepted\ndate: 2026-07-02\n")
-        root = make_wiki(self.tmp, variant="codebase", files={
+        root = make_wiki(self.tmp, variant="pinned-repo", files={
             "adrs/0001-choose-postgres.md": adr,
             "adrs/0003-choose-sqlite.md": adr3,
         })
@@ -313,7 +313,7 @@ class TestAdrsAndStaleness(WikiTest):
         self.assertEqual(len(findings(report, "adr", "WARNING")), 1)  # gap 0002
 
     def test_last_verified_staleness(self):
-        root = make_wiki(self.tmp, variant="homelab", files={
+        root = make_wiki(self.tmp, variant="infra", files={
             "components/old-box.md": page(
                 "component", "Old box.",
                 extra_fm="component_kind: host\nstatus: active\n"
@@ -326,7 +326,7 @@ class TestAdrsAndStaleness(WikiTest):
 class TestCoverage(WikiTest):
     def test_coverage_anchored_and_grouped_by_subsystem(self):
         # Review regressions: 'src' used to cover 'src-utils'; no subsystem view.
-        use_variant("codebase-large")
+        use_variant("sharded-repo")
         repo = Path(self.tmp) / "fakerepo"
         (repo / "libs" / "auth").mkdir(parents=True)
         (repo / "libs" / "auth-extra").mkdir(parents=True)
@@ -338,7 +338,7 @@ class TestCoverage(WikiTest):
                      "status: active\ncriticality: load-bearing\ndepends_on: []\n"
                      f"last_verified_commit: abc\nlast_verified: {TODAY}\n"
                      "verification_method: full\n")
-        root = make_wiki(str(wiki), variant="codebase-large",
+        root = make_wiki(str(wiki), variant="sharded-repo",
                          files={"subsystems/auth/modules/auth.md": module})
         (root / "index.md").write_text(
             f"```yaml\nrepo: x\nlocal_path: {repo}\nlast_synced_commit: abc\n"
