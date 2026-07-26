@@ -676,7 +676,7 @@ class TestTypesGlossary(WikiTest):
 
     def test_undescribed_and_unknown_and_empty_meaning(self):
         root = make_wiki(self.tmp)
-        # generic schema types: source, entity, concept, synthesis, query.
+        # wiki schema types: source, entity, concept, synthesis, query.
         # Describe all but 'query', add a meaningless entry and an unknown one.
         (root / "taxonomy.md").write_text(
             "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
