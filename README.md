@@ -14,8 +14,6 @@ One layering note when comparing bundles across producers: OKF reserves two file
 
 `wiki/` organizes knowledge as sources / entities / concepts / synthesis / queries, fed from an immutable, human-owned `raw/` inbox. It suits reading notes, research, and any source-driven knowledge base.
 
-Earlier revisions shipped three sibling variants (homelab, codebase, codebase-large) with specialized schemas on the same engine. They were retired in favor of one well-tested template (their configs live on under `tests/fixtures/` as engine coverage, and in git history if you want to resurrect one); the engine keeps the extension knobs they exercised, so a specialized schema is a `lint.py` + `CLAUDE.md` away.
-
 ## Install
 
 ```sh
