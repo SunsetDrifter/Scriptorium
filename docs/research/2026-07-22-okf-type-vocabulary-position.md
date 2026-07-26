@@ -28,9 +28,11 @@ Therefore the v0.2 ask should be a **place, not a vocabulary**: a reserved, conv
 
 ## Predictions (falsifiable, 2026-07-22)
 
-- If OKF v0.2 ships a controlled type vocabulary: adoption bifurcates within roughly a year. Asset-catalog bundles conform; wiki-style bundles ignore it; "OKF-conformant" stops naming one thing.
-- If v0.2 ships a self-description convention (glossary file or frontmatter block): it holds the ecosystem together by converting divergence into documented local dialects.
-- If v0.2 ships nothing on types: tooling defaults (starting with the reference visualizer's palette) harden into an unwritten registry, and the gap resurfaces as interop bugs rather than as a design discussion.
+**Scored 2026-07-26 — v0.2 shipped 2026-07-24.** Outcome: the third branch, with one asterisk. §4.1 keeps `type` a free string ("Type values are **not** registered centrally") and no glossary or self-description convention landed, so the "nothing on types" prediction is the live one: watch whether tooling defaults harden into an unwritten registry. The asterisk: v0.2 defines contract semantics for exactly one type value, `Attested Computation` (§10, with required `runtime`/`executor`/`attester` fields) — the first spec-blessed type, a per-type contract rather than a vocabulary. That is a fourth path this note did not predict: the spec assigning meaning to individual type values one at a time, as capabilities need it.
+
+- If OKF v0.2 ships a controlled type vocabulary: adoption bifurcates within roughly a year. Asset-catalog bundles conform; wiki-style bundles ignore it; "OKF-conformant" stops naming one thing. **(Did not happen.)**
+- If v0.2 ships a self-description convention (glossary file or frontmatter block): it holds the ecosystem together by converting divergence into documented local dialects. **(Did not happen; Scriptorium's `## Page types` glossary remains a local dialect.)**
+- If v0.2 ships nothing on types: tooling defaults (starting with the reference visualizer's palette) harden into an unwritten registry, and the gap resurfaces as interop bugs rather than as a design discussion. **(This is the branch we are on, modulo the `Attested Computation` asterisk above; still open, re-score as tooling accumulates.)**
 
 ## Possible Scriptorium moves (recorded, not committed to)
 

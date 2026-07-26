@@ -73,7 +73,7 @@ updated: 2026-04-10        # bumped on every edit
 description: One line saying what this page covers, used for scanning.
 subsystem: auth            # or 'global' for cross-cutting pages
 tags: []
-sources: []
+sources: []                # entries are mappings: - resource: /dir/page.md (bundle-absolute, OKF v0.2)
 confidence: low | contested   # optional; absent means normal
 ---
 ```

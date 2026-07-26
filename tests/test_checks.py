@@ -833,7 +833,7 @@ class TestOkfConformance(WikiTest):
         rebuild_index(root)
         self.assertEqual(findings(gather(root), "okf", "ERROR"), [])
         text = (root / "index.md").read_text()
-        self.assertTrue(text.startswith('---\nokf_version: "0.1"\n---\n'), text[:60])
+        self.assertTrue(text.startswith('---\nokf_version: "0.2"\n---\n'), text[:60])
         self.assertIn("* [A Note](/concepts/a-note.md) - A.", text)
 
     def test_rebuild_index_does_not_accumulate_frontmatter(self):
@@ -851,6 +851,103 @@ class TestOkfConformance(WikiTest):
         })
         use_variant_with("generic", okf_conformance=False)
         self.assertEqual(findings(gather(root), "okf"), [])
+
+
+class TestSourcesShape(WikiTest):
+    """OKF v0.2 §5.1: sources entries are mappings with a required resource;
+    bundle paths use the bundle-absolute form. The pre-0.2 plain-string shape
+    still resolves but warns."""
+
+    SRC = "---\ntype: source\ncreated: 2026-07-01\nupdated: 2026-07-01\n" \
+          "description: A source.\ntags: [alpha]\nsources: []\n" \
+          "source_path: raw/articles/foo.md\n---\n\nBody.\n"
+
+    def _wiki(self, citing_fm):
+        return make_wiki(self.tmp, files={
+            "sources/foo-article.md": self.SRC,
+            "concepts/cites.md": (
+                "---\ntype: concept\ncreated: 2026-07-01\nupdated: 2026-07-01\n"
+                f"description: Cites foo.\ntags: [alpha]\n{citing_fm}---\n\n"
+                "Body cites [foo](/sources/foo-article.md).\n"
+            ),
+        })
+
+    def test_mapping_entry_resolves_and_passes(self):
+        root = self._wiki("sources:\n  - resource: /sources/foo-article.md\n")
+        report = gather(root)
+        self.assertEqual(findings(report, "sources"), [])
+        self.assertEqual(findings(report, "reference", "ERROR"), [])
+
+    def test_multi_key_mapping_entry_parses(self):
+        from wikilint.model import parse_frontmatter
+        fields, err = parse_frontmatter(
+            "---\ntype: concept\nsources:\n"
+            "  - resource: /sources/foo.md\n"
+            "    id: foo\n"
+            "    title: Foo article\n---\n"
+        )
+        self.assertIsNone(err)
+        self.assertEqual(fields["sources"], [{
+            "resource": "/sources/foo.md", "id": "foo", "title": "Foo article",
+        }])
+
+    def test_url_list_entry_stays_a_string(self):
+        # A bare URL contains a colon but is not a mapping entry.
+        from wikilint.model import parse_frontmatter
+        fields, err = parse_frontmatter(
+            "---\ntype: concept\nsources:\n  - https://example.com/schema\n---\n"
+        )
+        self.assertIsNone(err)
+        self.assertEqual(fields["sources"], ["https://example.com/schema"])
+
+    def test_string_entry_warns_but_still_resolves(self):
+        root = self._wiki("sources: [sources/foo-article.md]\n")
+        report = gather(root)
+        warnings = findings(report, "sources", "WARNING")
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("plain string", warnings[0][3])
+        self.assertEqual(findings(report, "reference", "ERROR"), [])
+
+    def test_mapping_without_resource_errors(self):
+        root = self._wiki("sources:\n  - id: foo\n")
+        report = gather(root)
+        errors = findings(report, "sources", "ERROR")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("resource", errors[0][3])
+
+    def test_relative_resource_warns_bundle_absolute(self):
+        root = self._wiki("sources:\n  - resource: sources/foo-article.md\n")
+        report = gather(root)
+        warnings = findings(report, "sources", "WARNING")
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("bundle-absolute", warnings[0][3])
+
+    def test_url_resource_is_skipped_by_reference_check(self):
+        root = self._wiki("sources:\n  - resource: https://example.com/schema\n")
+        report = gather(root)
+        self.assertEqual(findings(report, "sources"), [])
+        self.assertEqual(findings(report, "reference", "ERROR"), [])
+
+    def test_bundle_absolute_path_field_resolves(self):
+        # Leading-slash targets in any path field resolve against the root.
+        root = self._wiki(
+            "sources:\n  - resource: /sources/foo-article.md\n"
+            "supersedes: [/sources/foo-article.md]\n"
+        )
+        report = gather(root)
+        self.assertEqual(findings(report, "reference", "ERROR"), [])
+
+    def test_dangling_mapping_resource_still_reported(self):
+        root = self._wiki("sources:\n  - resource: /sources/never-written.md\n")
+        report = gather(root)
+        errors = findings(report, "reference", "ERROR")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("nonexistent", errors[0][3])
+
+    def test_gate_off_disables_shape_check(self):
+        root = self._wiki("sources: [sources/foo-article.md]\n")
+        use_variant_with("generic", okf_conformance=False)
+        self.assertEqual(findings(gather(root), "sources"), [])
 
 
 if __name__ == "__main__":

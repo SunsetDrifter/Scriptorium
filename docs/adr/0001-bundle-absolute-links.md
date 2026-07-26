@@ -12,3 +12,7 @@ All internal links in every wiki variant use bundle-absolute targets (`[proxmox-
 - Wiki links 404 when browsed on github.com and produce edge-less graphs in Google's unpatched visualizer. Treat external rendering as a conversion/tooling concern (the visualizer needs a ~3-line patch to resolve leading-`/` targets against the bundle root), not an authoring concern.
 - Still conformant OKF: the spec supports both styles. If a future OKF version drops bundle-absolute links, revisit this ADR.
 - The convention is load-bearing in `wikilint/derived.py` (index generation emits `[Title](/path.md)`), link resolution in `wikilint/checks.py`, each variant's `CLAUDE.md` linking rule, and tests — a reversal is a coordinated migration across all four variants plus existing wiki content.
+
+## Addendum (2026-07-26): OKF v0.2 adopted bundle-absolute as the recommended form
+
+OKF v0.2 (published 2026-07-24) resolved the upstream tension in our favor: SPEC §6.1 now recommends the bundle-absolute form ("stable when documents are moved within their subdirectory") and the upstream proposal to recommend file-relative (PR #165) did not land. The decision above is unchanged and now spec-endorsed; the visualizer rendering gap remains a tooling concern. With the v0.2 migration, frontmatter path values (`sources[].resource`, `supersedes`, edge fields) also use the bundle-absolute spelling, so links and path fields share one canonical form per target.

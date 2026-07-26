@@ -136,7 +136,10 @@ def check_links_and_orphans(pages, report, root):
             if target.rel != p.rel:
                 inbound[target.rel] += 1
         for field in CONFIG["path_fields"] + CONFIG["edge_fields"]:
-            for value in p.field_list(field):
+            for value in p.path_list(field):
+                # External resources (URLs) are provenance, not wiki edges.
+                if URI_SCHEME_RE.match(value):
+                    continue
                 target = resolve_link(value, by_stem, by_rel)
                 if target is None:
                     report.error(
@@ -606,8 +609,39 @@ def check_log(root, report):
             )
 
 
+def check_sources(pages, report):
+    """OKF v0.2 sources shape (SPEC §5.1): each entry is a mapping whose
+    required resource names either an external URL or a bundle-absolute page
+    path. Plain-string entries (the pre-0.2 shape) still resolve as paths in
+    check_links_and_orphans, but warn until installs migrate."""
+    if not CONFIG["okf_conformance"]:
+        return
+    for p in pages:
+        for i, entry in enumerate(p.field_list("sources"), 1):
+            if isinstance(entry, dict):
+                resource = entry.get("resource", "")
+                if not resource:
+                    report.error(
+                        "sources", p.rel,
+                        f"sources entry {i} has no resource "
+                        "(required per entry, OKF v0.2 §5.1)",
+                    )
+                elif not URI_SCHEME_RE.match(resource) and not resource.startswith("/"):
+                    report.warning(
+                        "sources", p.rel,
+                        f"sources entry {i}: bundle paths should be "
+                        f"bundle-absolute (/dir/page.md), got {resource!r}",
+                    )
+            else:
+                report.warning(
+                    "sources", p.rel,
+                    f"sources entry {i} is a plain string; the OKF v0.2 shape "
+                    "is '- resource: /dir/page.md'",
+                )
+
+
 def check_okf(pages, report, root):
-    """OKF v0.1 conformance: (1) every non-reserved .md parses as frontmatter,
+    """OKF v0.2 conformance: (1) every non-reserved .md parses as frontmatter,
     (2) with a non-empty type, (3) reserved files follow their structure.
     Pages are skipped here: check_frontmatter is strictly stricter. log.md's
     structure is owned by check_log, not re-validated here. raw/ is excluded
