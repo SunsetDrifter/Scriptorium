@@ -402,7 +402,7 @@ class TestMarkdownLinks(WikiTest):
             "concepts/b-note.md": page("concept", "B."),
             "lab-dir/x.txt": "not markdown\n",
         })
-        use_variant_with("generic",
+        use_variant_with("wiki",
                          non_page_allowed=["lab-dir", "CLAUDE.md", "index.md", "log.md",
                                            "lint.py", "wikilint", "taxonomy.md", "raw", "workflows"])
         report = gather(root)
@@ -424,7 +424,7 @@ class TestEngineExtensionPoints(WikiTest):
         root = make_wiki(self.tmp, files={
             "queries/orphan-question.md": page("query", "Nobody links here."),
         })
-        use_variant_with("generic", orphans=False)
+        use_variant_with("wiki", orphans=False)
         self.assertEqual(findings(gather(root), "orphan"), [])
 
     def test_non_page_allowed_globs(self):
@@ -432,8 +432,8 @@ class TestEngineExtensionPoints(WikiTest):
             "lab-2026-01-01-x/README.md": "a lab\n",
             "mystery/notes.md": "unexpected\n",
         })
-        config = use_variant("generic")
-        use_variant_with("generic",
+        config = use_variant("wiki")
+        use_variant_with("wiki",
                          non_page_allowed=list(config["non_page_allowed"]) + ["lab-*"])
         flagged = [p for _, _, p, _ in findings(gather(root), "layout", "WARNING")]
         self.assertNotIn("lab-2026-01-01-x", flagged)
@@ -449,7 +449,7 @@ class TestEngineExtensionPoints(WikiTest):
         root = make_wiki(self.tmp, files={
             "concepts/a-note.md": page("concept", "A."),
         })
-        use_variant_with("generic", index_file="concepts/INDEX.md",
+        use_variant_with("wiki", index_file="concepts/INDEX.md",
                          index_body_fn=table_body)
         from wikilint.derived import rebuild_index
         rebuild_index(root)
@@ -466,15 +466,15 @@ class TestEngineExtensionPoints(WikiTest):
 
     def test_extra_secret_patterns_fire(self):
         root = make_wiki(self.tmp, files={
-            "concepts/token.md": page("concept", "T.", body="pat nbp_abc12345XYZ here\n"),
+            "concepts/token.md": page("concept", "T.", body="pat acme_abc12345XYZ here\n"),
         })
         use_variant_with(
-            "generic",
-            extra_secret_patterns=[(r"\bnbp_[A-Za-z0-9]{8,}", "netbird PAT")],
+            "wiki",
+            extra_secret_patterns=[(r"\bacme_[A-Za-z0-9]{8,}", "acme PAT")],
         )
         hits = findings(gather(root), "secrets", "ERROR")
         self.assertEqual(len(hits), 1)
-        self.assertIn("netbird PAT", hits[0][3])
+        self.assertIn("acme PAT", hits[0][3])
         self.assertTrue(hits[0][2].startswith("concepts/token.md:"))
 
     def test_secret_allowlist_suppresses_a_real_match(self):
@@ -487,9 +487,9 @@ class TestEngineExtensionPoints(WikiTest):
                 "concept", "Tpl.",
                 body="password: ${REDACTED}\npassword: leakedhunter2\n"),
         })
-        use_variant_with("generic")
+        use_variant_with("wiki")
         self.assertEqual(len(findings(gather(root), "secrets", "ERROR")), 2)
-        use_variant_with("generic", secret_allow_res=[r"\$\{[^}]*\}"])
+        use_variant_with("wiki", secret_allow_res=[r"\$\{[^}]*\}"])
         hits = findings(gather(root), "secrets", "ERROR")
         self.assertEqual(len(hits), 1)
         self.assertTrue(hits[0][2].endswith(":11"), hits[0][2])  # the plain line
@@ -498,7 +498,7 @@ class TestEngineExtensionPoints(WikiTest):
         root = make_wiki(self.tmp, files={
             "concepts/dated.md": page("concept", "D.", extra_fm="date: not-a-date\n"),
         })
-        use_variant_with("generic",
+        use_variant_with("wiki",
                          iso_date_fields=["created", "updated", "date"])
         messages = [m for _, _, _, m in findings(gather(root), "frontmatter", "ERROR")]
         self.assertTrue(any("date is not an ISO date" in m for m in messages))
@@ -509,7 +509,7 @@ class TestEngineExtensionPoints(WikiTest):
         })
         (root / "log.md").unlink()
         (root / "taxonomy.md").unlink()
-        use_variant_with("generic", log_file=None, taxonomy_file=None,
+        use_variant_with("wiki", log_file=None, taxonomy_file=None,
                          inbox_dir=None)
         report = gather(root)  # must not crash on inbox_dir=None
         self.assertEqual(findings(report, "log"), [])
@@ -522,7 +522,7 @@ class TestEngineExtensionPoints(WikiTest):
         root = make_wiki(self.tmp, files={
             "concepts/a-note.md": page("concept", "A."),
         })
-        use_variant_with("generic", extra_checks=[custom])
+        use_variant_with("wiki", extra_checks=[custom])
         hits = findings(gather(root), "custom", "INFO")
         self.assertEqual(len(hits), 1)
         self.assertIn("saw 1 pages", hits[0][3])
@@ -539,7 +539,7 @@ class TestExtensionHardening(WikiTest):
         root = make_wiki(self.tmp, files={})
         (root / "log.md").unlink()
         (root / "ops-journal.md").write_text("# Log\n\n## bad header\n")
-        use_variant_with("generic", log_file="ops-journal.md")
+        use_variant_with("wiki", log_file="ops-journal.md")
         hits = findings(gather(root), "log", "WARNING")
         self.assertTrue(hits)
         self.assertTrue(all(h[2].startswith("ops-journal.md:") for h in hits), hits)
@@ -549,13 +549,13 @@ class TestExtensionHardening(WikiTest):
             "concepts/a-note.md": page("concept", "A.",
                                        created="2026-05-01", updated="2026-04-01"),
         })
-        use_variant_with("generic", iso_date_fields=["date"])  # excludes the pair
+        use_variant_with("wiki", iso_date_fields=["date"])  # excludes the pair
         msgs = [m for _, _, _, m in findings(gather(root), "frontmatter", "ERROR")]
         self.assertIn("updated is older than created", msgs)
 
     def test_index_file_none_disables_index_without_crashing(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", index_file=None)
+        use_variant_with("wiki", index_file=None)
         self.assertEqual(findings(gather(root), "index"), [])
 
     def test_invalid_index_file_raises_config_error(self):
@@ -563,18 +563,18 @@ class TestExtensionHardening(WikiTest):
         make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
         for bad in ("/abs/index.md", "../escape.md", ""):
             with self.assertRaises(ConfigError):
-                use_variant_with("generic", index_file=bad)
+                use_variant_with("wiki", index_file=bad)
 
     def test_rebuild_index_creates_missing_parent_dir(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", index_file="derived/index.md",
+        use_variant_with("wiki", index_file="derived/index.md",
                          index_body_fn=lambda pages: "- x\n")
         self._rebuild(root)  # must not raise
         self.assertTrue((root / "derived/index.md").is_file())
 
     def test_dot_prefixed_index_is_skipped_by_discovery(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", index_file="./concepts/INDEX.md",
+        use_variant_with("wiki", index_file="./concepts/INDEX.md",
                          index_body_fn=lambda pages: "- x\n")
         self._rebuild(root)
         fm = [i for i in findings(gather(root), "frontmatter", "ERROR") if "INDEX" in i[2]]
@@ -582,7 +582,7 @@ class TestExtensionHardening(WikiTest):
 
     def test_relocated_root_index_not_flagged_by_layout(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", index_file="catalog.md",
+        use_variant_with("wiki", index_file="catalog.md",
                          index_body_fn=lambda pages: "- x\n")
         self._rebuild(root)
         layout = [p for _, _, p, _ in findings(gather(root), "layout", "WARNING")]
@@ -590,7 +590,7 @@ class TestExtensionHardening(WikiTest):
 
     def test_index_body_fn_leading_newline_no_perpetual_drift(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", index_body_fn=lambda pages: "\n| P |\n| a |\n")
+        use_variant_with("wiki", index_body_fn=lambda pages: "\n| P |\n| a |\n")
         self._rebuild(root)
         self.assertEqual(findings(gather(root), "index"), [])
 
@@ -598,16 +598,16 @@ class TestExtensionHardening(WikiTest):
         from wikilint.settings import ConfigError
         make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
         with self.assertRaises(ConfigError):
-            use_variant_with("generic", extra_secret_patterns=[("nbp_[", "bad")])
+            use_variant_with("wiki", extra_secret_patterns=[("acme_[", "bad")])
         with self.assertRaises(ConfigError):
-            use_variant_with("generic", secret_allow_res=["(unclosed"])
+            use_variant_with("wiki", secret_allow_res=["(unclosed"])
 
     def test_extra_check_exception_becomes_a_finding(self):
         def boom(pages, report, root):
             raise KeyError("missing")
 
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
-        use_variant_with("generic", extra_checks=[boom])
+        use_variant_with("wiki", extra_checks=[boom])
         report = gather(root)  # must not crash
         hits = findings(report, "extra-check", "ERROR")
         self.assertEqual(len(hits), 1)
@@ -617,7 +617,7 @@ class TestExtensionHardening(WikiTest):
         from wikilint.settings import ConfigError
         make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
         with self.assertRaises(ConfigError):
-            use_variant_with("generic", extra_checks=["not callable"])
+            use_variant_with("wiki", extra_checks=["not callable"])
 
     def test_image_wrapped_link_credits_outer_target(self):
         root = make_wiki(self.tmp, files={
@@ -676,7 +676,7 @@ class TestTypesGlossary(WikiTest):
 
     def test_undescribed_and_unknown_and_empty_meaning(self):
         root = make_wiki(self.tmp)
-        # generic schema types: source, entity, concept, synthesis, query.
+        # wiki schema types: source, entity, concept, synthesis, query.
         # Describe all but 'query', add a meaningless entry and an unknown one.
         (root / "taxonomy.md").write_text(
             "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
@@ -706,7 +706,7 @@ class TestTypesGlossary(WikiTest):
 
     def test_glossary_gate_off(self):
         make_wiki(self.tmp)
-        use_variant_with("generic", types_glossary=False)
+        use_variant_with("wiki", types_glossary=False)
         root = Path(self.tmp)
         (root / "taxonomy.md").write_text(
             "---\ntype: tooling\n---\n\n# Taxonomy\n\n- alpha — test tag\n"
@@ -724,7 +724,7 @@ class TestSkillsPairing(WikiTest):
 
     def wiki(self, files=None):
         root = make_wiki(self.tmp, files=files)
-        use_variant_with("generic", skills_dir=".claude/skills")
+        use_variant_with("wiki", skills_dir=".claude/skills")
         return root
 
     def test_unprefixed_wrapper_is_orphan(self):
@@ -744,7 +744,7 @@ class TestSkillsPairing(WikiTest):
         # Every variant now ships skills_dir, so exercise the engine default
         # (None) by overriding it off: no pairing checks run.
         root = make_wiki(self.tmp, files={"workflows/document.md": self.WORKFLOW})
-        use_variant_with("generic", skills_dir=None)
+        use_variant_with("wiki", skills_dir=None)
         report = gather(root)
         self.assertEqual(findings(report, "skills"), [])
 
@@ -849,7 +849,7 @@ class TestOkfConformance(WikiTest):
         root = make_wiki(self.tmp, files={
             "notes.md": "no frontmatter here\n",
         })
-        use_variant_with("generic", okf_conformance=False)
+        use_variant_with("wiki", okf_conformance=False)
         self.assertEqual(findings(gather(root), "okf"), [])
 
 
@@ -946,7 +946,7 @@ class TestSourcesShape(WikiTest):
 
     def test_gate_off_disables_shape_check(self):
         root = self._wiki("sources: [sources/foo-article.md]\n")
-        use_variant_with("generic", okf_conformance=False)
+        use_variant_with("wiki", okf_conformance=False)
         self.assertEqual(findings(gather(root), "sources"), [])
 
 
