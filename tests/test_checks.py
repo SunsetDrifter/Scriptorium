@@ -293,7 +293,7 @@ class TestIndexAndSize(WikiTest):
 
     def test_hot_core_cap(self):
         root = make_wiki(self.tmp)
-        (root / "CLAUDE.md").write_text("x\n" * 200)
+        (root / "CLAUDE.md").write_text("x\n" * 201)
         report = gather(root)
         self.assertEqual(len(findings(report, "hot-core", "WARNING")), 1)
 
