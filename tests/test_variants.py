@@ -1,14 +1,14 @@
 """Template invariants: compilable heads, sane configs, line budgets, and
-hook correctness properties, for the shipped template and the retired-variant
-configs kept under tests/fixtures/ as engine coverage."""
+hook correctness properties, for the shipped template and the feature-named
+extension configs in extension_configs.py."""
 
 import py_compile
 import unittest
 
 from helpers import REPO, VARIANTS, load_variant_config
 
-# Shipped template plus config-only fixtures (see helpers.load_variant_config).
-ALL_CONFIGS = VARIANTS + ["homelab", "codebase", "codebase-large"]
+# Shipped template plus extension-knob config bundles.
+ALL_CONFIGS = VARIANTS + ["infra", "pinned-repo", "sharded-repo"]
 
 
 class TestEngineIdentity(unittest.TestCase):
