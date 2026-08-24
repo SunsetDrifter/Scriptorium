@@ -1,10 +1,10 @@
 """Mutable configuration holder and the config-validation boundary.
 
 cli.main() calls configure() once at startup with a variant's CONFIG; every
-other module imports the CONFIG dict object and reads it live. Engine
-extension points default to original wiki behavior via DEFAULTS, so a variant
-only lists a key when it overrides one. configure() validates user-supplied
-values (regexes, paths, callables) and fails fast with a clear message.
+other module imports the CONFIG dict object and reads it live. DEFAULTS
+supplies every key the engine reads, so a variant only lists a key when it
+overrides one. configure() validates user-supplied values (regexes, paths,
+callables) and fails fast with a clear message.
 """
 
 import re
@@ -12,11 +12,69 @@ from pathlib import PurePosixPath
 
 CONFIG = {}
 
-# Engine extension points. Defaults live here, once, and preserve the original
-# wiki behavior; a variant's lint.py overrides a key only to change it. Reading
-# these bare as CONFIG[key] is safe because configure() merges DEFAULTS under
-# every variant config.
-DEFAULTS = {
+# Core knobs: the schema a variant declares. These have no "before" — they
+# were always variant-declared — so each defaults to the neutral/disabled
+# value: no pages, no required fields, every optional check off. A default
+# here can only ever silence a check, never invent one, so a variant that
+# omits a key gets nothing rather than a surprise finding.
+CORE_DEFAULTS = {
+    # Directories containing lint-checked pages, relative to the wiki root.
+    "page_dirs": [],
+    # Top-level entries allowed to exist but not scanned as pages (fnmatch).
+    "non_page_allowed": [],
+    # Immutable human-owned sources, excluded from the OKF bundle; None
+    # disables the exclusion.
+    "raw_dir": None,
+    # Hot-core size guard: warn when CLAUDE.md exceeds this many lines.
+    "claude_md_max_lines": 200,
+    # Frontmatter required on every page, then per-type extras.
+    "required_fields": [],
+    "type_required": {},
+    # Frontmatter fields restricted to a value set, globally then per type.
+    "enum_fields": {},
+    "type_enum_fields": {},
+    # Frontmatter fields whose values must resolve to existing pages, and the
+    # extra graph edges walked for orphan detection.
+    "path_fields": [],
+    "edge_fields": [],
+    # Fields `reverse-deps` inverts into a reverse-dependency map.
+    "reverse_fields": [],
+    # Container-page membership rule; None disables check_membership.
+    "membership": None,
+    # Per-field staleness rules: [{field, types, max_days, severity}].
+    "staleness": [],
+    # Days a `confidence: contested` page may sit untouched.
+    "contested_max_days": 30,
+    # Cross-page sync-drift rule; None disables check_sync_drift.
+    "sync_drift": None,
+    # Criticality/owner-review knobs; None disables their checks.
+    "criticality_field": None,
+    "owner_review_max_days": None,
+    # Mermaid diagram checks: types that must carry one, node-count budgets.
+    "mermaid_required_types": [],
+    "mermaid_node_warn": None,
+    "mermaid_node_error": None,
+    # Directories holding NNNN-slug ADRs; empty disables the ADR checks.
+    "adr_dirs": [],
+    # Built-in index generator shape (ignored when index_body_fn is set).
+    "index_mode": "flat",
+    "index_sections": [],
+    # `coverage` verb availability.
+    "coverage": False,
+    # Controlled-tag vocabulary file; None disables the tag checks.
+    "taxonomy_file": None,
+    # Triage inbox directory (None disables) and its warning thresholds.
+    "inbox_dir": None,
+    "inbox_warn_count": 10,
+    "inbox_warn_age_days": 14,
+}
+
+# Engine extension points. Unlike the core knobs above, these default to the
+# ORIGINAL wiki behavior — including the non-off `orphans: True`,
+# `log_file: "log.md"`, `okf_conformance: True` and `types_glossary: True` —
+# so a variant written before the extension existed keeps behaving as it did,
+# and a variant that wants one off lists it as a genuine override.
+EXTENSION_DEFAULTS = {
     # Enforce OKF v0.2 conformance (check_okf) and stamp okf_version
     # frontmatter into the rebuilt index. Off for non-OKF markdown trees.
     "okf_conformance": True,
@@ -53,6 +111,11 @@ DEFAULTS = {
     # Callables(pages, report, root) run at the end of every check pass.
     "extra_checks": [],
 }
+
+# Every key the engine reads, with its default. Reading these bare as
+# CONFIG[key] is safe because configure() merges DEFAULTS under every variant
+# config — that merge is the reason a variant may omit a key entirely.
+DEFAULTS = {**CORE_DEFAULTS, **EXTENSION_DEFAULTS}
 
 
 class ConfigError(Exception):

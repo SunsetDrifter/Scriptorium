@@ -44,6 +44,16 @@ class TestConfigSanity(unittest.TestCase):
             self.assertIn(rule["container_field"],
                           config["path_fields"] + config["edge_fields"], variant)
 
+    def test_every_config_key_is_covered_by_defaults(self):
+        """A config may only set keys the engine knows about, so a typo'd key
+        name cannot sit in a lint.py silently doing nothing."""
+        from wikilint.settings import DEFAULTS
+        for variant in ALL_CONFIGS:
+            config, _ = load_variant_config(variant)
+            unknown = sorted(set(config) - set(DEFAULTS))
+            self.assertEqual(unknown, [],
+                             f"{variant} sets keys the engine never reads: {unknown}")
+
     def test_extension_defaults_present(self):
         """The template's effective config carries every extension key."""
         from wikilint.settings import DEFAULTS, configure, CONFIG
