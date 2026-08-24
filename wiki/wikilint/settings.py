@@ -69,6 +69,19 @@ CORE_DEFAULTS = {
     "inbox_warn_age_days": 14,
 }
 
+# The engine's own subcommands, as (verb, one-line help). Declared here rather
+# than in cli.py because this module is the validation boundary and needs the
+# reserved names to reject an `extra_commands` verb that would shadow a
+# built-in; cli.usage() renders this same table, so the verb list has exactly
+# one declaration.
+BUILTIN_COMMANDS = (
+    ("check", "run all mechanical checks, exit 1 on errors"),
+    ("rebuild-index", "regenerate the index from page frontmatter"),
+    ("reverse-deps", "print the derived reverse-dependency maps"),
+    ("coverage", "write coverage.md (variants with coverage enabled)"),
+    ("help", "print this usage"),
+)
+
 # Engine extension points. Unlike the core knobs above, these default to the
 # ORIGINAL wiki behavior — including the non-off `orphans: True`,
 # `log_file: "log.md"`, `okf_conformance: True` and `types_glossary: True` —
@@ -110,6 +123,10 @@ EXTENSION_DEFAULTS = {
     "log_file": "log.md",
     # Callables(pages, report, root) run at the end of every check pass.
     "extra_checks": [],
+    # Variant subcommands: {verb: (callable(root) -> exit code, help text)}.
+    # Registered verbs dispatch ahead of the wiki-root guard and appear in the
+    # one usage string, so a variant never intercepts argv for itself.
+    "extra_commands": {},
 }
 
 # Every key the engine reads, with its default. Reading these bare as
@@ -135,6 +152,28 @@ def _compile(pattern, key):
         return re.compile(pattern)
     except re.error as e:
         raise ConfigError(f"{key}: invalid regex {pattern!r}: {e}")
+
+
+def _validate_commands(commands):
+    """Validate the extra_commands registration table so a misregistered verb
+    fails here, once, instead of at dispatch time."""
+    reserved = {verb for verb, _help in BUILTIN_COMMANDS}
+    if not isinstance(commands, dict):
+        raise ConfigError("extra_commands must be a {verb: (callable, help)} dict")
+    for verb, entry in commands.items():
+        if not isinstance(verb, str) or not verb.strip():
+            raise ConfigError(f"extra_commands verbs must be non-empty strings: {verb!r}")
+        if verb in reserved:
+            raise ConfigError(f"extra_commands verb {verb!r} shadows an engine subcommand")
+        try:
+            fn, help_text = entry
+        except (TypeError, ValueError):
+            raise ConfigError(
+                f"extra_commands[{verb!r}] must be a (callable, help) pair: {entry!r}")
+        if not callable(fn):
+            raise ConfigError(f"extra_commands[{verb!r}] handler must be callable: {fn!r}")
+        if not isinstance(help_text, str) or not help_text.strip():
+            raise ConfigError(f"extra_commands[{verb!r}] needs a non-empty help string")
 
 
 def _validate(cfg):
@@ -168,6 +207,7 @@ def _validate(cfg):
     for fn in cfg["extra_checks"]:
         if not callable(fn):
             raise ConfigError(f"extra_checks entries must be callable: {fn!r}")
+    _validate_commands(cfg["extra_commands"])
 
     compiled_extra = []
     for item in cfg["extra_secret_patterns"]:

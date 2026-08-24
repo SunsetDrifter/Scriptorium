@@ -1,4 +1,9 @@
-"""CLI entry point: subcommand dispatch and the check orchestrator."""
+"""CLI entry point: subcommand dispatch and the check orchestrator.
+
+usage() renders the engine's verbs (settings.BUILTIN_COMMANDS) plus whatever
+the active wiki registered through `extra_commands`, so one usage string
+covers every verb and a wiki never has to intercept argv for itself.
+"""
 
 import sys
 from pathlib import Path
@@ -6,15 +11,22 @@ from pathlib import Path
 from . import checks
 from .derived import check_index_drift, rebuild_index, run_coverage, run_reverse_deps
 from .model import Report, discover_pages
-from .settings import CONFIG, ConfigError, configure
+from .settings import BUILTIN_COMMANDS, CONFIG, ConfigError, configure
 
-USAGE = """\
-Usage:
-    python3 lint.py check            run all mechanical checks, exit 1 on errors
-    python3 lint.py rebuild-index    regenerate the index from page frontmatter
-    python3 lint.py reverse-deps     print the derived reverse-dependency maps
-    python3 lint.py coverage         write coverage.md (variants with coverage enabled)
-"""
+
+def usage():
+    """The single authoritative verb list: engine subcommands plus whatever
+    the active wiki registered through extra_commands."""
+    rows = list(BUILTIN_COMMANDS) + [
+        (verb, help_text)
+        for verb, (_fn, help_text) in sorted(CONFIG.get("extra_commands", {}).items())
+    ]
+    width = max(len(verb) for verb, _help in rows)
+    lines = ["Usage:"] + [
+        f"    python3 lint.py {verb.ljust(width)}    {help_text}"
+        for verb, help_text in rows
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def gather_report(root):
@@ -70,11 +82,20 @@ def main(config, index_entry_extra, argv=None, root=None):
         print(f"lint config error: {e}", file=sys.stderr)
         return 2
     root = Path(root) if root else Path.cwd()
+    args = sys.argv[1:] if argv is None else argv
+    command = args[0] if args else "check"
+    # Registered verbs and `help` dispatch ahead of the wiki-root guard, so a
+    # pure-reporting verb works from any cwd. A registered command that does
+    # need the wiki root must check for it itself.
+    handler = CONFIG["extra_commands"].get(command)
+    if handler is not None:
+        return handler[0](root)
+    if command in ("help", "-h", "--help"):
+        print(usage(), end="")
+        return 0
     if not (root / "CLAUDE.md").is_file():
         print("run from the wiki root (CLAUDE.md not found here)", file=sys.stderr)
         return 2
-    args = sys.argv[1:] if argv is None else argv
-    command = args[0] if args else "check"
     if command == "check":
         return run_check(root)
     if command == "rebuild-index":
@@ -86,5 +107,5 @@ def main(config, index_entry_extra, argv=None, root=None):
             print("coverage is not enabled for this variant")
             return 2
         return run_coverage(root)
-    print(USAGE)
+    print(usage(), end="")
     return 2
