@@ -39,8 +39,13 @@ CORE_DEFAULTS = {
     "edge_fields": [],
     # Fields `reverse-deps` inverts into a reverse-dependency map.
     "reverse_fields": [],
-    # Container-page membership rule; None disables check_membership.
+    # Container-page membership rule; None disables check_membership. A rule
+    # is {member_type, status_field, active_statuses, container_type,
+    # container_field}.
     "membership": None,
+    # Edge field whose targets must carry OKF `status: deprecated` (SPEC
+    # §5.4), e.g. "supersedes"; None disables check_supersedes.
+    "supersedes_field": None,
     # Per-field staleness rules: [{field, types, max_days, severity}].
     "staleness": [],
     # Days a `confidence: contested` page may sit untouched.
@@ -176,6 +181,25 @@ def _validate_commands(commands):
             raise ConfigError(f"extra_commands[{verb!r}] needs a non-empty help string")
 
 
+MEMBERSHIP_KEYS = ("member_type", "status_field", "active_statuses",
+                   "container_type", "container_field")
+
+
+def _validate_membership(rule):
+    """A membership rule must name every key check_membership reads, so an
+    older rule (status_field arrived when OKF claimed `status`) fails here
+    with the fix rather than as a KeyError mid-run."""
+    if rule is None:
+        return
+    if not isinstance(rule, dict):
+        raise ConfigError("membership must be None or a dict")
+    missing = [k for k in MEMBERSHIP_KEYS if k not in rule]
+    if missing:
+        raise ConfigError(
+            f"membership rule missing {missing}; status_field names the member "
+            "lifecycle field (not `status`, which OKF v0.2 §5.4 defines)")
+
+
 def _validate(cfg):
     """Validate user-supplied extension values at the config boundary and
     precompile the secret regexes so a bad pattern fails here, once, with a
@@ -190,6 +214,7 @@ def _validate(cfg):
                 f"index_file must stay within the wiki root: {index_file!r}")
     if cfg["log_file"] is not None and not isinstance(cfg["log_file"], str):
         raise ConfigError("log_file must be None or a relative path string")
+    _validate_membership(cfg["membership"])
     if not isinstance(cfg["types_glossary"], bool):
         raise ConfigError("types_glossary must be a bool")
     skills_dir = cfg["skills_dir"]

@@ -50,25 +50,29 @@ Every wiki page (everything outside `raw/`) starts with YAML frontmatter:
 ```yaml
 ---
 type: source | entity | concept | synthesis | query
+title: Zero Trust Networking
 created: 2026-04-10
-updated: 2026-04-10
+generated: { by: claude-code/<model-id>, at: 2026-04-10T14:00:00Z }
 description: One line saying what this page covers, used for scanning.
 tags: [tag1, tag2]
 sources:
   - resource: /sources/foo.md
 supersedes: []
+status: deprecated             # optional; absent means stable
 confidence: low | contested    # optional; absent means normal
 ---
 ```
 
 Rules:
-- `created` is set once and never changed. `updated` changes on every edit.
+- `title` is the page's human-readable name, shown in the index.
+- `created` is a date, set once and never changed. `generated` records the last meaningful edit and changes on every edit: `by` is the actor (`claude-code/<your model id>` for you, `human:<id>` when the human wrote the change), `at` is a UTC datetime from `date -u +%Y-%m-%dT%H:%M:%SZ`. Date-only `at` values fail lint.
+- `status` follows OKF: absent means stable, `draft` marks an incomplete page, and `deprecated` marks a page kept for history. A page another page `supersedes` must carry `status: deprecated` (lint-enforced).
 - `description` is one sentence. It is how you and the index find this page without opening it. Keep it accurate on every edit.
-- `sources` lists every source page that supports claims on this page; each entry is a mapping whose `resource` is the bundle-absolute page path (OKF v0.2 shape). External URLs are allowed as `resource` for material with no source page.
+- `sources` lists every source page that supports claims on this page; each entry is a mapping whose `resource` is the bundle-absolute page path (OKF v0.2 shape). External URLs are allowed as `resource` for material with no source page. OKF's optional per-entry keys (`id`, `title`, `author`) may be added; `id` is worth adding when the body cites the source by name.
 - `confidence` is absent on normal pages. `low` means claims lack citations. `contested` means two or more sources disagree, and the page body must explain the disagreement. Contested is a state to exit, not a resting place: reconcile it.
 - Every tag must appear in `taxonomy.md`. Introducing a tag means adding it there, with a one-line meaning, in the same commit. The allowed page types are described there too, under '## Page types'.
 - Mark claims you inferred rather than read with `(inferred)` inline; a page containing any carries `confidence: low`.
-- `supersedes` lists older pages whose claims this page replaces. The old page stays but gets a banner pointing forward.
+- `supersedes` lists older pages whose claims this page replaces. The old page stays, gets `status: deprecated`, and gets a banner pointing forward.
 - Use markdown links with bundle-absolute targets for all internal references: `[Zero Trust](/concepts/zero-trust-networking.md)`. Never use bare, unlinked paths in prose.
 - File names are kebab-case, lowercase, descriptive. `zero-trust-networking.md`, not `ZTN.md`.
 - One concept per page. If a page is becoming two things, split it and ask for confirmation.

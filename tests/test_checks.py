@@ -40,7 +40,7 @@ class TestFrontmatter(WikiTest):
             "concepts/empty-tags.md": page("concept", "Empty tags.", tags=""),
         })
         (root / "concepts/empty-tags.md").write_text(
-            "---\ntype: concept\ncreated: 2026-07-01\nupdated: 2026-07-01\n"
+            "---\ntype: concept\ntitle: T\ncreated: 2026-07-01\ngenerated: { by: claude-code/test, at: 2026-07-01T00:00:00Z }\n"
             "description: Empty tags.\ntags:\nsources: []\n---\n\nBody.\n"
         )
         report = gather(root)
@@ -65,7 +65,7 @@ class TestBodyExtraction(WikiTest):
         use_variant("infra")
         root = make_wiki(self.tmp, variant="infra", files={
             "topology/lan.md": (
-                "---\ntype: topology\ncreated: 2026-07-01\nupdated: 2026-07-01\n"
+                "---\ntype: topology\ntitle: T\ncreated: 2026-07-01\ngenerated: { by: claude-code/test, at: 2026-07-01T00:00:00Z }\n"
                 "description: LAN map.\ntags: [alpha]\nsources: []\nscope: l2\n"
                 "includes: [topology/lan.md]\n--- \n\n```mermaid\nflowchart LR\n  a[A] --> b[B]\n```\n"
             ),
@@ -120,7 +120,7 @@ class TestMembership(WikiTest):
     def test_active_component_outside_topology_flagged(self):
         # Review regression: the old "topology orphans" rule had been dropped.
         component = page("component", "A switch.", tags="[alpha]",
-                         extra_fm="component_kind: device\nstatus: active\n"
+                         extra_fm="component_kind: device\ncomponent_status: active\n"
                                   f"last_verified: {TODAY}\ndepends_on: []\n")
         root = make_wiki(self.tmp, variant="infra", files={
             "components/switch-01.md": component,
@@ -134,7 +134,7 @@ class TestMembership(WikiTest):
         root = make_wiki(self.tmp, variant="infra", files={
             "components/switch-01.md": page(
                 "component", "A switch.",
-                extra_fm="component_kind: device\nstatus: active\n"
+                extra_fm="component_kind: device\ncomponent_status: active\n"
                          f"last_verified: {TODAY}\ndepends_on: []\n"),
             "topology/lan.md": page(
                 "topology", "LAN.", extra_fm="scope: l2\nincludes: [components/switch-01.md]\n",
@@ -245,7 +245,7 @@ class TestPinningAndDrift(WikiTest):
 
     def test_sync_drift_uses_unquoted_commit(self):
         module = page("module", "Auth module.", tags="[alpha]",
-                      extra_fm="source_path: libs/auth/\nlanguage: go\nstatus: active\n"
+                      extra_fm="source_path: libs/auth/\nlanguage: go\nmodule_status: active\n"
                                "depends_on: []\nlast_verified_commit: e4f5g6h\n"
                                f"last_verified: {TODAY}\n")
         root = make_wiki(self.tmp, variant="pinned-repo",
@@ -267,7 +267,7 @@ class TestReverseDeps(WikiTest):
         root = make_wiki(self.tmp, variant="pinned-repo", files={
             "modules/auth.md": page(
                 "module", "Auth.", extra_fm="source_path: libs/auth/\nlanguage: go\n"
-                f"status: active\ndepends_on: []\nlast_verified_commit: abc\nlast_verified: {TODAY}\n"),
+                f"module_status: active\ndepends_on: []\nlast_verified_commit: abc\nlast_verified: {TODAY}\n"),
             "apis/auth-http.md": page(
                 "api", "Auth API.", extra_fm="api_kind: http\ndefined_in: modules/auth.md\n"
                 "stability: stable\nlast_verified_commit: abc\n"),
@@ -301,9 +301,9 @@ class TestIndexAndSize(WikiTest):
 class TestAdrsAndStaleness(WikiTest):
     def test_adr_gap_and_missing_forward_link(self):
         adr = page("adr", "Choose postgres.", tags="[alpha]",
-                   extra_fm="adr_number: 0001\nstatus: superseded\ndate: 2026-07-01\n")
+                   extra_fm="adr_number: 0001\nadr_status: superseded\ndate: 2026-07-01\n")
         adr3 = page("adr", "Choose sqlite.", tags="[alpha]",
-                    extra_fm="adr_number: 0003\nstatus: accepted\ndate: 2026-07-02\n")
+                    extra_fm="adr_number: 0003\nadr_status: accepted\ndate: 2026-07-02\n")
         root = make_wiki(self.tmp, variant="pinned-repo", files={
             "adrs/0001-choose-postgres.md": adr,
             "adrs/0003-choose-sqlite.md": adr3,
@@ -312,11 +312,21 @@ class TestAdrsAndStaleness(WikiTest):
         self.assertEqual(len(findings(report, "adr", "ERROR")), 1)    # no forward link
         self.assertEqual(len(findings(report, "adr", "WARNING")), 1)  # gap 0002
 
+    def test_legacy_adr_status_still_checked(self):
+        """Review regression: ADR trees predating adr_status keep their
+        superseded-without-forward-link check."""
+        adr = page("adr", "Legacy ADR.",
+                   extra_fm="adr_number: 0001\nstatus: superseded\ndate: 2026-07-01\n")
+        root = make_wiki(self.tmp, variant="pinned-repo",
+                         files={"adrs/0001-legacy.md": adr})
+        msgs = [m for _, _, _, m in findings(gather(root), "adr", "ERROR")]
+        self.assertTrue(any("superseded_by" in m for m in msgs), msgs)
+
     def test_last_verified_staleness(self):
         root = make_wiki(self.tmp, variant="infra", files={
             "components/old-box.md": page(
                 "component", "Old box.",
-                extra_fm="component_kind: host\nstatus: active\n"
+                extra_fm="component_kind: host\ncomponent_status: active\n"
                          f"last_verified: {DAYS_AGO_95}\ndepends_on: []\n"),
         })
         report = gather(root)
@@ -335,7 +345,7 @@ class TestCoverage(WikiTest):
         module = page(
             "module", "Auth.",
             extra_fm="subsystem: auth\nsource_path: libs/auth\nlanguage: go\n"
-                     "status: active\ncriticality: load-bearing\ndepends_on: []\n"
+                     "module_status: active\ncriticality: load-bearing\ndepends_on: []\n"
                      f"last_verified_commit: abc\nlast_verified: {TODAY}\n"
                      "verification_method: full\n")
         root = make_wiki(str(wiki), variant="sharded-repo",
@@ -360,8 +370,8 @@ class TestMarkdownLinks(WikiTest):
         })
         hits = findings(gather(root), "link", "ERROR")
         self.assertEqual(len(hits), 1)
-        # frontmatter is 8 lines + 1 blank: the body's first line is file line 10
-        self.assertTrue(hits[0][2].endswith(":10"), hits[0][2])
+        # frontmatter is 9 lines + 1 blank: the body's first line is file line 11
+        self.assertTrue(hits[0][2].endswith(":11"), hits[0][2])
 
     def test_bundle_absolute_links_resolve_against_root(self):
         root = make_wiki(self.tmp, files={
@@ -492,7 +502,7 @@ class TestEngineExtensionPoints(WikiTest):
         use_variant_with("wiki", secret_allow_res=[r"\$\{[^}]*\}"])
         hits = findings(gather(root), "secrets", "ERROR")
         self.assertEqual(len(hits), 1)
-        self.assertTrue(hits[0][2].endswith(":11"), hits[0][2])  # the plain line
+        self.assertTrue(hits[0][2].endswith(":12"), hits[0][2])  # the plain line
 
     def test_iso_date_fields_configurable(self):
         root = make_wiki(self.tmp, files={
@@ -544,14 +554,14 @@ class TestExtensionHardening(WikiTest):
         self.assertTrue(hits)
         self.assertTrue(all(h[2].startswith("ops-journal.md:") for h in hits), hits)
 
-    def test_created_updated_ordering_independent_of_iso_date_fields(self):
+    def test_created_generated_ordering_independent_of_iso_date_fields(self):
         root = make_wiki(self.tmp, files={
             "concepts/a-note.md": page("concept", "A.",
                                        created="2026-05-01", updated="2026-04-01"),
         })
         use_variant_with("wiki", iso_date_fields=["date"])  # excludes the pair
         msgs = [m for _, _, _, m in findings(gather(root), "frontmatter", "ERROR")]
-        self.assertIn("updated is older than created", msgs)
+        self.assertIn("generated.at is older than created", msgs)
 
     def test_index_file_none_disables_index_without_crashing(self):
         root = make_wiki(self.tmp, files={"concepts/a-note.md": page("concept", "A.")})
@@ -593,6 +603,15 @@ class TestExtensionHardening(WikiTest):
         use_variant_with("wiki", index_body_fn=lambda pages: "\n| P |\n| a |\n")
         self._rebuild(root)
         self.assertEqual(findings(gather(root), "index"), [])
+
+    def test_membership_rule_missing_keys_raises_config_error(self):
+        """Review regression: a rule predating status_field must fail at
+        startup with a clear message, not KeyError mid-run."""
+        from wikilint.settings import ConfigError
+        rule = {"member_type": "component", "active_statuses": ["active"],
+                "container_type": "topology", "container_field": "includes"}
+        with self.assertRaisesRegex(ConfigError, "status_field"):
+            use_variant_with("infra", membership=rule)
 
     def test_bad_secret_regex_raises_config_error(self):
         from wikilint.settings import ConfigError
@@ -834,7 +853,7 @@ class TestOkfConformance(WikiTest):
         self.assertEqual(findings(gather(root), "okf", "ERROR"), [])
         text = (root / "index.md").read_text()
         self.assertTrue(text.startswith('---\nokf_version: "0.2"\n---\n'), text[:60])
-        self.assertIn("* [A Note](/concepts/a-note.md) - A.", text)
+        self.assertIn("* [Test Page](/concepts/a-note.md) - A.", text)
 
     def test_rebuild_index_does_not_accumulate_frontmatter(self):
         root = make_wiki(self.tmp, files={
@@ -858,7 +877,7 @@ class TestSourcesShape(WikiTest):
     bundle paths use the bundle-absolute form. The pre-0.2 plain-string shape
     still resolves but warns."""
 
-    SRC = "---\ntype: source\ncreated: 2026-07-01\nupdated: 2026-07-01\n" \
+    SRC = "---\ntype: source\ntitle: T\ncreated: 2026-07-01\ngenerated: { by: claude-code/test, at: 2026-07-01T00:00:00Z }\n" \
           "description: A source.\ntags: [alpha]\nsources: []\n" \
           "source_path: raw/articles/foo.md\n---\n\nBody.\n"
 
@@ -866,7 +885,7 @@ class TestSourcesShape(WikiTest):
         return make_wiki(self.tmp, files={
             "sources/foo-article.md": self.SRC,
             "concepts/cites.md": (
-                "---\ntype: concept\ncreated: 2026-07-01\nupdated: 2026-07-01\n"
+                "---\ntype: concept\ntitle: T\ncreated: 2026-07-01\ngenerated: { by: claude-code/test, at: 2026-07-01T00:00:00Z }\n"
                 f"description: Cites foo.\ntags: [alpha]\n{citing_fm}---\n\n"
                 "Body cites [foo](/sources/foo-article.md).\n"
             ),
