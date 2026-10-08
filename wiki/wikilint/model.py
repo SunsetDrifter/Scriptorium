@@ -49,10 +49,6 @@ KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
 # required whitespace after the colon keeps bare URLs (scheme:// has none)
 # parsing as plain strings.
 LIST_MAP_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s+(\S.*)$")
-# Datetime pieces Python 3.9's fromisoformat rejects: a fraction that is not
-# exactly 3 or 6 digits, and a colon-less +HHMM offset.
-ISO_FRACTION_RE = re.compile(r"\.(\d+)(?=[+-]\d|$)")
-ISO_COMPACT_OFFSET_RE = re.compile(r"([+-])(\d{2})(\d{2})$")
 
 
 class Report:
@@ -207,18 +203,12 @@ def parse_iso_date(value):
 def parse_okf_datetime(value):
     """An OKF timestamp (SPEC §5): ISO 8601 datetime with an explicit UTC
     offset. Date-only and offset-less values return None, as the spec tells
-    consumers to ignore them. Z, fractions of any length and +HHMM offsets
-    are normalized first: datetime.fromisoformat accepts them only from
-    Python 3.11, and results must not depend on the interpreter."""
+    consumers to ignore them. Python 3.11+ fromisoformat parses the full
+    form natively: Z, fractions of any length, +HHMM offsets."""
     if not isinstance(value, str) or "T" not in value:
         return None
-    text = value.strip()
-    if text[-1:] in ("Z", "z"):
-        text = text[:-1] + "+00:00"
-    text = ISO_FRACTION_RE.sub(lambda m: "." + m.group(1)[:6].ljust(6, "0"), text)
-    text = ISO_COMPACT_OFFSET_RE.sub(r"\1\2:\3", text)
     try:
-        parsed = datetime.fromisoformat(text)
+        parsed = datetime.fromisoformat(value.strip())
     except ValueError:
         return None
     return parsed if parsed.tzinfo is not None else None

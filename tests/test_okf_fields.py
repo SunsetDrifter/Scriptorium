@@ -61,9 +61,9 @@ class TestOkfDatetime(unittest.TestCase):
         self.assertIsNotNone(parse_okf_datetime("2026-10-08T14:00:00Z"))
         self.assertIsNotNone(parse_okf_datetime("2026-10-08T14:00:00+05:30"))
 
-    def test_forms_python_39_fromisoformat_rejects(self):
-        """Review regression: 3.9's fromisoformat refuses these RFC 3339
-        forms that 3.11+ accepts; results must not depend on the Python."""
+    def test_rfc3339_variants_accepted(self):
+        """Review regression: fraction lengths and compact offsets must
+        parse (3.9 rejected them; the 3.11 floor parses them natively)."""
         for value in ("2026-10-08T14:00:00.5Z", "2026-10-08T14:00:00.123456789Z",
                       "2026-10-08T14:00:00+0000", "2026-10-08T14:00:00.25-0530"):
             self.assertIsNotNone(parse_okf_datetime(value), value)
