@@ -4,6 +4,9 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+# Tests import the template's own files; never leave bytecode inside it.
+sys.dont_write_bytecode = True
+
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "wiki"))
 

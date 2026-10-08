@@ -102,5 +102,8 @@ def index_entry_extra(fields):
 
 if __name__ == "__main__":
     import sys
+    # No __pycache__: the wiki repo ships no .gitignore, so cached bytecode
+    # would land in history on the next `git add -A`. Recompiling is cheap.
+    sys.dont_write_bytecode = True
     from wikilint import main
     sys.exit(main(CONFIG, index_entry_extra))

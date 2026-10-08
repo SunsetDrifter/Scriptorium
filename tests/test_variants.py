@@ -2,7 +2,6 @@
 hook correctness properties, for the shipped template and the feature-named
 extension configs in extension_configs.py."""
 
-import py_compile
 import unittest
 
 from helpers import REPO, VARIANTS, load_variant_config
@@ -13,10 +12,10 @@ ALL_CONFIGS = VARIANTS + ["infra", "pinned-repo", "sharded-repo"]
 
 class TestEngineIdentity(unittest.TestCase):
     def test_everything_compiles(self):
+        # Builtin compile() checks syntax without writing .pyc files.
         for variant in VARIANTS:
-            py_compile.compile(str(REPO / variant / "lint.py"), doraise=True)
-            for p in (REPO / variant / "wikilint").glob("*.py"):
-                py_compile.compile(str(p), doraise=True)
+            for p in [REPO / variant / "lint.py", *(REPO / variant / "wikilint").glob("*.py")]:
+                compile(p.read_text(encoding="utf-8"), str(p), "exec")
 
 
 class TestConfigSanity(unittest.TestCase):
