@@ -47,9 +47,12 @@ def use_variant(variant):
 
 def page(ptype, description, extra_fm="", body="Body.\n", tags="[alpha]",
          created=TODAY, updated=None):
+    """A valid page in the template's OKF shape. `updated` is the date of
+    the last edit, written as `generated.at` (an offset datetime)."""
     updated = updated or created
     return (
-        f"---\ntype: {ptype}\ncreated: {created}\nupdated: {updated}\n"
+        f"---\ntype: {ptype}\ntitle: Test Page\ncreated: {created}\n"
+        f"generated: {{ by: claude-code/test, at: {updated}T00:00:00Z }}\n"
         f"description: {description}\ntags: {tags}\nsources: []\n{extra_fm}---\n\n{body}"
     )
 

@@ -8,7 +8,7 @@ covers every verb and a wiki never has to intercept argv for itself.
 import sys
 from pathlib import Path
 
-from . import checks
+from . import checks, okf_fields
 from .derived import check_index_drift, rebuild_index, run_coverage, run_reverse_deps
 from .model import Report, discover_pages
 from .settings import BUILTIN_COMMANDS, CONFIG, ConfigError, configure
@@ -54,6 +54,8 @@ def gather_report(root):
     checks.check_log(root, report)
     checks.check_sources(pages, report)
     checks.check_okf(pages, report, root)
+    okf_fields.check_okf_fields(pages, report)
+    okf_fields.check_supersedes(pages, report)
     check_index_drift(pages, report, root)
     for extra in CONFIG["extra_checks"]:
         # A third-party check must not abort the run: a raise here would

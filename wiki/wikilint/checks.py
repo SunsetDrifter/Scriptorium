@@ -2,14 +2,15 @@
 builder in derived.py)."""
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from urllib.parse import unquote
 
 from .model import (
     ADR_FILE_RE, FILENAME_EXEMPT, KEBAB_RE, LOG_DATE_HEADER_RE, LOG_ENTRY_RE,
     MD_LINK_RE, OKF_VERSION, SECRET_PATTERNS, blank_frontmatter, blank_images,
-    blank_inline_code, build_link_index, discover_okf_bundle, line_at,
-    parse_frontmatter, parse_index_pinning, parse_iso_date, resolve_link,
+    OKF_STATUSES, blank_inline_code, build_link_index, discover_okf_bundle,
+    field_value, last_modified, line_at, parse_frontmatter, parse_index_pinning,
+    parse_iso_date, parse_okf_datetime, resolve_link,
 )
 from .settings import CONFIG
 
@@ -33,7 +34,7 @@ def check_frontmatter(pages, report):
             report.error("frontmatter", p.rel, f"invalid or missing type: {ptype!r}")
             continue
         for field in CONFIG["required_fields"] + CONFIG["type_required"][ptype]:
-            if missing_value(p.fields.get(field)):
+            if missing_value(field_value(p.fields, field)):
                 report.error("frontmatter", p.rel, f"missing or empty required field: {field}")
         check_enums(p, ptype, report)
         check_dates(p, report)
@@ -63,6 +64,9 @@ def check_dates(p, report):
     updated = parse_iso_date(p.fields.get("updated"))
     if created and updated and updated < created:
         report.error("frontmatter", p.rel, "updated is older than created")
+    generated_at = parse_okf_datetime(field_value(p.fields, "generated.at"))
+    if created and generated_at and generated_at.date() < created:
+        report.error("frontmatter", p.rel, "generated.at is older than created")
 
 
 def check_filenames(pages, report):
@@ -198,7 +202,7 @@ def check_membership(pages, report):
     for p in pages:
         if p.type != rule["member_type"] or not p.fields:
             continue
-        if p.fields.get("status") not in rule["active_statuses"]:
+        if p.fields.get(rule["status_field"]) not in rule["active_statuses"]:
             continue
         if p.rel not in contained:
             report.warning(
@@ -364,14 +368,14 @@ def check_skills(pages, report, root):
 
 
 def check_contested_age(pages, report):
-    today = date.today()
+    now = datetime.now(timezone.utc)
     for p in pages:
         if (p.fields or {}).get("confidence") != "contested":
             continue
-        updated = parse_iso_date(p.fields.get("updated"))
-        if updated is None:
+        changed = last_modified(p.fields)
+        if changed is None:
             continue
-        age = (today - updated).days
+        age = (now - changed).days
         if age > CONFIG["contested_max_days"]:
             report.warning(
                 "contested", p.rel,
@@ -555,8 +559,10 @@ def check_adr_dir(dir_path, pages, report, root):
             report.warning("adr", p.rel, "not in NNNN-slug.md form")
             continue
         numbers[int(m.group(1))] = p
-        status = (p.fields or {}).get("status")
-        if status == "superseded" and not (p.fields or {}).get("superseded_by"):
+        # adr_status since OKF claimed `status`; legacy ADR trees keep theirs.
+        fields = p.fields or {}
+        status = fields.get("adr_status", fields.get("status"))
+        if status == "superseded" and not fields.get("superseded_by"):
             report.error("adr", p.rel, "superseded ADR has no superseded_by forward link")
     if numbers:
         expected = set(range(min(numbers), max(numbers) + 1))

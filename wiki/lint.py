@@ -32,8 +32,9 @@ CONFIG = {
     "reverse_fields": [],
     # Active members that must appear in a container page (None disables).
     "membership": None,
-    # Frontmatter required on every page.
-    "required_fields": ["type", "created", "updated", "description", "tags"],
+    # Frontmatter required on every page. A dotted name reads into a
+    # mapping: generated.at is OKF's last-meaningful-change datetime.
+    "required_fields": ["type", "title", "created", "generated.at", "description", "tags"],
     # type -> extra required fields for that type.
     "type_required": {
         "source": [],
@@ -51,6 +52,8 @@ CONFIG = {
     "type_enum_fields": {},
     # Frontmatter fields whose values are wiki paths that must exist.
     "path_fields": ["sources", "supersedes"],
+    # Pages listed in this field must carry OKF `status: deprecated`.
+    "supersedes_field": "supersedes",
     # Fields that define dependency edges (stored once, on the depender).
     # The reverse map is derived, never stored.
     "edge_fields": [],
@@ -91,9 +94,10 @@ CONFIG = {
 
 
 def index_entry_extra(fields):
-    """Trailing annotation for an index entry, by page type."""
-    updated = fields.get("updated", "?")
-    return f"(updated {updated})"
+    """Trailing annotation for an index entry: the date of the last edit."""
+    generated = fields.get("generated")
+    at = generated.get("at", "") if isinstance(generated, dict) else ""
+    return f"(updated {at[:10] or '?'})"
 
 
 if __name__ == "__main__":
