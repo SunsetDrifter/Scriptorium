@@ -123,7 +123,9 @@ def rebuild_index(root):
     # The okf_version stamp is a single fixed key: always regenerate it so a
     # deleted or corrupted block self-heals on the next rebuild.
     front = f'---\nokf_version: "{OKF_VERSION}"\n---\n\n' if CONFIG["okf_conformance"] else ""
-    head = "# Index\n\n"
+    # A fresh index gets index_head; an existing one keeps its own head.
+    default_head = CONFIG["index_head"] or "# Index\n\n"
+    head = default_head
     if index.is_file():
         existing = _strip_leading_frontmatter(
             index.read_text(encoding="utf-8", errors="replace"))
@@ -131,7 +133,7 @@ def rebuild_index(root):
             head = existing.split(GENERATED_MARKER)[0]
         else:
             m = YAML_FENCE_RE.search(existing)
-            if m and existing[:m.start()].strip() in ("", "# Index"):
+            if m and existing[:m.start()].strip() in ("", "# Index", default_head.strip()):
                 head = existing[:m.end()] + "\n\n"
     body = generate_index_body(pages)
     index.write_text(f"{front}{head}{GENERATED_MARKER}\n\n{body}", encoding="utf-8")
