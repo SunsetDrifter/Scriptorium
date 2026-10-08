@@ -16,6 +16,8 @@ One layering note when comparing bundles across producers: OKF reserves two file
 
 ## Install
 
+Requires Python 3.11+ as `python3` (the lint engine and pre-commit hook are stdlib-only, no packages to install). The floor tracks the oldest CPython still in security support and moves up each October; older interpreters get a one-line message naming the version found. On macOS the bundled `/usr/bin/python3` is too old, so put a Homebrew or uv Python first on `PATH`.
+
 ```sh
 mkdir my-wiki && cd my-wiki && git init
 cp -r path/to/Scriptorium/wiki/ .
