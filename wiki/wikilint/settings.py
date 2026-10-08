@@ -103,6 +103,11 @@ EXTENSION_DEFAULTS = {
     "index_file": "index.md",
     # Callable(pages) -> str replacing the built-in index body generator.
     "index_body_fn": None,
+    # Text above the generated marker when the index does not exist yet; None
+    # keeps the generic "# Index" heading. A tree that does not commit its
+    # index (entry titles are private) rebuilds it from scratch in every
+    # clone, so it sets this to keep its own heading and guidance.
+    "index_head": None,
     # Frontmatter fields validated as ISO dates when present. The
     # created/updated ordering check runs regardless of this list.
     "iso_date_fields": ["created", "updated"],
@@ -227,6 +232,8 @@ def _validate(cfg):
                 f"skills_dir must stay within the wiki root: {skills_dir!r}")
     if not isinstance(cfg["skills_prefix"], str):
         raise ConfigError("skills_prefix must be a string")
+    if cfg["index_head"] is not None and not isinstance(cfg["index_head"], str):
+        raise ConfigError("index_head must be None or a string")
     if cfg["index_body_fn"] is not None and not callable(cfg["index_body_fn"]):
         raise ConfigError("index_body_fn must be None or callable")
     for fn in cfg["extra_checks"]:
